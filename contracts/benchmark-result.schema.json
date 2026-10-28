@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://avd-ops.dev/contracts/benchmark-result.schema.json",
+  "title": "AVD Benchmark Result (Contract C25)",
+  "description": "Anonymized, reproducible benchmark result for Azure Virtual Desktop synthetic (Tier 1) and observational (Tier 2) runs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "date",
+    "source",
+    "tier",
+    "profile",
+    "environment",
+    "metrics",
+    "verdict"
+  ],
+  "properties": {
+    "schema": {
+      "const": "avd-benchmark-result/v1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^bm-[0-9]{8}-[a-z0-9-]+$"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["sandbox", "lab", "estate", "prior"]
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["synthetic", "observational"]
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "assessCommit", "benchmarkCommit"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": [
+            "storage-fslogix-io",
+            "host-logon-storm",
+            "multisession-density",
+            "control-plane-autoscale",
+            "bcdr-profile-recovery"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "workloadClass": {
+          "type": "string",
+          "enum": ["light", "medium", "heavy", "power", "n/a"]
+        },
+        "assessCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "benchmarkCommit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vmSku",
+        "vcpu",
+        "memoryGiB",
+        "osDiskType",
+        "ephemeralOsDisk",
+        "encryptionAtHost",
+        "trustedLaunch",
+        "osImage",
+        "wdotProfile",
+        "defenderCachePresealed",
+        "fslogixExclusions",
+        "joinType",
+        "intuneEnrolled",
+        "profileStorageSku",
+        "profileAuth",
+        "smbChannelEncryption",
+        "networkEgress",
+        "sampleHostsBand",
+        "sampleSessionsBand",
+        "windowHours"
+      ],
+      "properties": {
+        "vmSku": {
+          "type": "string",
+          "enum": [
+            "Standard_D4s_v5",
+            "Standard_D8s_v5",
+            "Standard_D16s_v5",
+            "Standard_D4as_v5",
+            "Standard_D8as_v5",
+            "Standard_D4ads_v5",
+            "Standard_D8ads_v5",
+            "Standard_E4s_v5",
+            "Standard_E8s_v5",
+            "Standard_E4as_v5",
+            "Standard_E8as_v5",
+            "Standard_F8s_v2",
+            "Standard_NV8as_v4"
+          ]
+        },
+        "vcpu": { "type": "integer", "minimum": 2, "maximum": 128 },
+        "memoryGiB": { "type": "number", "minimum": 4, "maximum": 1024 },
+        "osDiskType": {
+          "type": "string",
+          "enum": ["Premium_LRS", "Premium_ZRS", "Ephemeral", "StandardSSD_LRS", "Standard_LRS"]
+        },
+        "ephemeralOsDisk": { "type": "boolean" },
+        "encryptionAtHost": { "type": "boolean" },
+        "trustedLaunch": { "type": "boolean" },
+        "osImage": {
+          "type": "string",
+          "enum": [
+            "win11-24h2-avd-m365",
+            "win11-23h2-avd-m365",
+            "win11-24h2-avd",
+            "winserver-2022-datacenter",
+            "winserver-2025-datacenter"
+          ]
+        },
+        "wdotProfile": {
+          "type": "string",
+          "enum": ["avd-ops-reviewed-v1", "wdot-default", "none"]
+        },
+        "defenderCachePresealed": { "type": "boolean" },
+        "fslogixExclusions": {
+          "type": "string",
+          "enum": ["full", "partial", "none"]
+        },
+        "joinType": {
+          "type": "string",
+          "enum": ["entra-joined", "hybrid-entra-joined", "adds-joined", "entra-ds-joined"]
+        },
+        "intuneEnrolled": { "type": "boolean" },
+        "profileStorageSku": {
+          "type": "string",
+          "enum": ["Premium_ZRS", "Premium_LRS", "Standard_ZRS", "Standard_LRS", "AzureNetAppFiles_Standard", "AzureNetAppFiles_Premium", "none"]
+        },
+        "profileAuth": {
+          "type": "string",
+          "enum": ["entra-kerberos", "adds-kerberos", "entra-ds-kerberos", "storage-key", "none"]
+        },
+        "smbChannelEncryption": {
+          "type": "string",
+          "enum": ["AES-128-GCM+AES-256-GCM", "AES-128-GCM", "AES-256-GCM", "AES-128-CCM", "unencrypted", "none"]
+        },
+        "networkEgress": {
+          "type": "string",
+          "enum": ["nat-gateway", "public-ip", "azure-firewall", "nva-forced-tunnel"]
+        },
+        "sampleHostsBand": {
+          "type": "string",
+          "enum": ["1-2", "3-9", "10-25", "26-100", "100+"]
+        },
+        "sampleSessionsBand": {
+          "type": "string",
+          "enum": ["1-2", "3-9", "10-25", "26-100", "100+"]
+        },
+        "windowHours": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 720
+        }
+      }
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["experienceGate", "claims"],
+      "properties": {
+        "experienceGate": {
+          "type": "string",
+          "enum": ["pass", "warn", "fail"]
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["claim", "observation", "verdict"],
+            "properties": {
+              "claim": { "type": "string", "pattern": "^ref:[a-z0-9-]+#[a-z0-9-]+$" },
+              "observation": { "type": "string", "pattern": "^(obs|gap):[a-z0-9-]+$" },
+              "verdict": { "type": "string", "enum": ["agrees", "extends", "disagrees", "prior"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}
