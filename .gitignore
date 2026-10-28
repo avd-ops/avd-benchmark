@@ -1,0 +1,4 @@
+# Generated test reports and local benchmark output
+testResults.xml
+out/
+*.zip
