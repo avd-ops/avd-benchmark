@@ -1,0 +1,10 @@
+{
+  "$comment": "Pinned avd-assess commit for benchmark profile definitions, experience gates, C25 schema, and baseline corpus.",
+  "source": "https://github.com/avd-ops/avd-assess",
+  "commit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
+  "pinnedAt": "2026-10-28",
+  "artifacts": {
+    "schema": "contracts/benchmark-result.schema.json",
+    "corpus": "site/portal/corpus.json"
+  }
+}

@@ -1,0 +1,203 @@
+<!doctype html>
+<!-- avd-benchmark portal, design system v2.7.0. Personal project, not for production, as is; not affiliated with the author's employer or Microsoft. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AVD Benchmark Explorer &amp; Runner Portal | avd-benchmark</title>
+<meta name="description" content="OpenBenchmarking-style explorer and Tier 1 benchmark runner for Azure Virtual Desktop. Compare VM SKUs, OS disk types, and WDOT profiles, build Cloud Shell commands, and validate C25 evidence in your browser.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<link rel="icon" href="../assets/brand/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/avd-ops.css">
+<link rel="stylesheet" href="../assets/avd-ops-portal.css">
+<link rel="stylesheet" href="../assets/avd-ops-shell.css">
+<link rel="stylesheet" href="portal.css">
+<script src="../assets/theme.js"></script>
+</head>
+<body class="shell portal">
+<header class="bar"><div class="bar-in"><a class="brand" href="https://avd-ops.dev/"><img class="mark" src="../assets/brand/mark.svg" alt="" width="44" height="44"><span class="name"><span class="word">avd-ops</span><span class="tag">Deploy quietly</span></span></a>
+<nav class="switcher" aria-label="avd-ops tools"><a href="https://avd-ops.dev/">Docs</a><a href="https://deploy.avd-ops.dev/portal/">Deploy</a><a href="https://assess.avd-ops.dev/portal/">Assess</a><a href="./" aria-current="page">Benchmark</a></nav>
+<details class="notice" id="disclaimer"><summary><strong class="long">Personal project. Research and learning only. Not for production. No warranty.</strong><strong class="short">Not for production</strong></summary>
+<div class="full"><ul><li><strong>Personal project, not for production.</strong> Provided "as is", without warranty of any kind (<a href="https://github.com/avd-ops/avd-benchmark/blob/main/LICENSE">MIT License</a>).</li>
+<li>Built on my own time for research and learning. Not affiliated with, endorsed by or supported by my employer or Microsoft, and not an official Microsoft product.</li>
+<li>Don't run any of it in production. Active synthetic benchmarks generate guest and storage load. Contributions and forks are welcome and encouraged.</li></ul></div></details>
+<div class="tools"><button class="iconbtn theme" type="button" aria-label="Switch theme"><svg class="sun" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 1.8v2.2M10 16v2.2M1.8 10H4M16 10h2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6"/></svg><svg class="moon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z"/></svg></button></div></div></header>
+
+<main class="wz-layout" id="main">
+  <header class="top wz-rail">
+    <div class="title"><h1>AVD benchmark portal</h1>
+      <p class="purpose">Compare <a href="https://github.com/avd-ops/avd-assess">avd-assess</a> baselines, generate Tier 1 harness commands, and validate C25 evidence in your browser.</p></div>
+    <ol class="wz-list" id="steps" aria-label="Benchmark portal tabs"></ol>
+    <ol class="wz-progress" id="steps-bar" aria-label="Benchmark portal tabs"></ol>
+  </header>
+  <div class="wz-main">
+
+  <section class="wz-stage" id="stage-explore" data-step="explore" aria-labelledby="explore-title">
+    <h2 id="explore-title">Explorer (Compare)</h2>
+    <p class="purpose">Filter by Tier 1 benchmark profile and compare VM SKUs, OS disks, and guest optimizations side by side.</p>
+    <p class="prior-banner" role="note">Seeded records marked <code>source: prior</code> represent baseline priors and fixture targets pinned to <code>avd-assess@cfcc302</code> until empirical sandbox batches replace them.</p>
+    <div class="row">
+      <label class="field" for="filter-profile"><span>Benchmark profile</span>
+        <select id="filter-profile">
+          <option value="multisession-density">multisession-density (User density &amp; input delay)</option>
+          <option value="storage-fslogix-io">storage-fslogix-io (diskspd &amp; VHDX attach)</option>
+          <option value="host-logon-storm">host-logon-storm (Concurrent sign-in storm)</option>
+          <option value="control-plane-autoscale">control-plane-autoscale (Boot, StartVMOnConnect &amp; drain)</option>
+          <option value="bcdr-profile-recovery">bcdr-profile-recovery (R0/R1/R2 RTO &amp; RPO)</option>
+        </select>
+      </label>
+      <label class="field" for="compare-sku-a"><span>Primary VM SKU</span>
+        <select id="compare-sku-a">
+          <option value="">Any matching SKU</option>
+          <option value="Standard_E4s_v5" selected>Standard_E4s_v5 (4 vCPU, 32 GiB)</option>
+          <option value="Standard_D8s_v5">Standard_D8s_v5 (8 vCPU, 32 GiB)</option>
+        </select>
+      </label>
+      <label class="field" for="compare-sku-b"><span>Comparison VM SKU</span>
+        <select id="compare-sku-b">
+          <option value="">Any second SKU</option>
+          <option value="Standard_D8s_v5" selected>Standard_D8s_v5 (8 vCPU, 32 GiB)</option>
+          <option value="Standard_E4s_v5">Standard_E4s_v5 (4 vCPU, 32 GiB)</option>
+        </select>
+      </label>
+    </div>
+    <div class="row gap">
+      <label class="field" for="filter-disk"><span>OS disk type</span>
+        <select id="filter-disk">
+          <option value="">All OS disk types</option>
+          <option value="Premium_LRS">Premium_LRS</option>
+          <option value="Ephemeral">Ephemeral</option>
+        </select>
+      </label>
+      <label class="field" for="filter-wdot"><span>WDOT / guest optimization</span>
+        <select id="filter-wdot">
+          <option value="">All WDOT profiles</option>
+          <option value="avd-ops-reviewed-v1">avd-ops-reviewed-v1</option>
+          <option value="none">none</option>
+        </select>
+      </label>
+    </div>
+    <div id="compare-grid" class="compare-grid" aria-live="polite"></div>
+    <details class="more"><summary>How citations and experience gates work</summary>
+      <p>Every benchmark record is comparable only when <code>profile.id</code> and major <code>profile.version</code> match. Citations follow <code>avd-assess@&lt;commit&gt;:evidence/&lt;profile&gt;/&lt;id&gt;.json</code>.</p>
+    </details>
+  </section>
+
+  <section class="wz-stage hidden" id="stage-run" data-step="run" aria-labelledby="run-title">
+    <h2 id="run-title">Run Harness (Cloud Shell / Host)</h2>
+    <p class="purpose">Configure a Tier 1 benchmark run and copy a self-contained PowerShell or Bash command block.</p>
+    <div class="runin" role="group" aria-label="Shell choice">
+      <span class="runin-title">Shell</span>
+      <div class="segmented" role="radiogroup" aria-label="Shell">
+        <label><input type="radio" name="run-shell" value="pwsh" checked><span>PowerShell 7</span></label>
+        <label><input type="radio" name="run-shell" value="bash"><span>Bash</span></label>
+      </div>
+    </div>
+    <div class="row gap">
+      <label class="field" for="run-profile"><span>Profile</span>
+        <select id="run-profile">
+          <option value="multisession-density">multisession-density</option>
+          <option value="storage-fslogix-io">storage-fslogix-io</option>
+          <option value="host-logon-storm">host-logon-storm</option>
+          <option value="control-plane-autoscale">control-plane-autoscale</option>
+          <option value="bcdr-profile-recovery">bcdr-profile-recovery</option>
+        </select>
+      </label>
+      <label class="field" for="run-workload"><span>Workload persona</span>
+        <select id="run-workload">
+          <option value="light">light (6/vCPU)</option>
+          <option value="medium" selected>medium (4/vCPU)</option>
+          <option value="heavy">heavy (2/vCPU)</option>
+          <option value="power">power (1/vCPU)</option>
+          <option value="n/a">n/a (storage / control-plane)</option>
+        </select>
+      </label>
+      <label class="field" for="run-sku"><span>Target VM SKU</span>
+        <select id="run-sku">
+          <option value="Standard_E4s_v5" selected>Standard_E4s_v5</option>
+          <option value="Standard_D8s_v5">Standard_D8s_v5</option>
+          <option value="Standard_D4s_v5">Standard_D4s_v5</option>
+          <option value="Standard_E8s_v5">Standard_E8s_v5</option>
+        </select>
+      </label>
+    </div>
+    <div class="row gap">
+      <label class="field" for="run-disk"><span>OS disk type</span>
+        <select id="run-disk">
+          <option value="Premium_LRS" selected>Premium_LRS</option>
+          <option value="Ephemeral">Ephemeral</option>
+          <option value="Premium_ZRS">Premium_ZRS</option>
+          <option value="StandardSSD_LRS">StandardSSD_LRS</option>
+        </select>
+      </label>
+      <label class="field" for="run-wdot"><span>WDOT profile</span>
+        <select id="run-wdot">
+          <option value="avd-ops-reviewed-v1" selected>avd-ops-reviewed-v1</option>
+          <option value="wdot-default">wdot-default</option>
+          <option value="none">none</option>
+        </select>
+      </label>
+      <label class="field" for="run-exclusions"><span>FSLogix Defender exclusions</span>
+        <select id="run-exclusions">
+          <option value="full" selected>full</option>
+          <option value="partial">partial</option>
+          <option value="none">none</option>
+        </select>
+      </label>
+    </div>
+    <div class="row gap">
+      <label class="field" for="run-mode"><span>Execution mode</span>
+        <select id="run-mode">
+          <option value="OfflineFixture" selected>OfflineFixture (Zero cloud spend, dry-run fixture)</option>
+          <option value="ExistingHostPool">ExistingHostPool (Inspect existing lab pool)</option>
+          <option value="SandboxBatch">SandboxBatch (Requires explicit owner go batch approval)</option>
+        </select>
+      </label>
+      <label class="field" for="run-approval"><span>Sandbox batch approval (required only for SandboxBatch)</span>
+        <input type="text" id="run-approval" autocomplete="off" spellcheck="false" placeholder="go batch bm-01 $12.50">
+      </label>
+    </div>
+    <p id="run-approval-note" class="spend-banner" role="status" hidden></p>
+    <div class="term gap" id="run-term">
+      <div class="term-head"><span class="term-label">Run Tier 1 benchmark harness</span><button type="button" id="copy-run-cmd">Copy</button></div>
+      <pre id="run-cmd">if (-not (Test-Path ~/avd-benchmark)) { git clone https://github.com/avd-ops/avd-benchmark.git ~/avd-benchmark }
+Set-Location ~/avd-benchmark; git checkout -q main; git pull -q --ff-only
+pwsh -NoLogo -File ./Invoke-AvdBenchmark.ps1 -ProfileId multisession-density -WorkloadClass medium -VmSku Standard_E4s_v5 -OsDiskType Premium_LRS -WdotProfile avd-ops-reviewed-v1 -FslogixExclusions full -Mode OfflineFixture</pre>
+    </div>
+    <details class="more"><summary>Spend guard &amp; pinned diskspd verification</summary>
+      <p>Under the family spend rule, any mode that provisions or starts cloud resources requires <code>-SandboxBatchApproval "go batch &lt;id&gt; $&lt;total&gt;"</code>. When <code>storage-fslogix-io</code> runs with a local <code>diskspd</code> binary, <code>Test-AvdDiskSpdBinary</code> verifies its SHA-256 hash against the pinned MIT allowlist before execution.</p>
+    </details>
+  </section>
+
+  <section class="wz-stage hidden" id="stage-submit" data-step="submit" aria-labelledby="submit-title">
+    <h2 id="submit-title">Validate &amp; Submit Evidence (C25)</h2>
+    <p class="purpose">Validate a local C25 JSON file in your browser and open a prefilled GitHub Issue Form on avd-assess.</p>
+    <label class="field" for="c25-input"><span>Paste a C25 (avd-benchmark-result/v1) JSON document</span>
+      <textarea class="paste" id="c25-input" rows="10" spellcheck="false" autocomplete="off" placeholder="{ &quot;schema&quot;: &quot;avd-benchmark-result/v1&quot;, ... }"></textarea>
+    </label>
+    <div class="actions">
+      <button type="button" id="c25-validate-btn">Validate C25 &amp; scan for leaks</button>
+      <button type="button" class="secondary" id="c25-load-sample">Load sample C25 record</button>
+      <a class="btnlink secondary hidden" id="c25-submit-link" href="#" target="_blank" rel="noopener">Open prefilled avd-assess issue form</a>
+    </div>
+    <div id="c25-result" class="gap" aria-live="polite"></div>
+    <details class="more"><summary>What the browser validator checks</summary>
+      <p>The validator checks that every environment property uses closed enums and public VM SKUs, sample counts use privacy bands (<code>1-2</code>, <code>3-9</code>, <code>10-25</code>, <code>26-100</code>, <code>100+</code>), metrics hold only aggregate percentiles or scalars, and the JSON contains no GUIDs, email addresses, IPv4 addresses, UNC paths, Azure resource IDs, or private domain names.</p>
+    </details>
+  </section>
+
+  </div>
+</main>
+<nav class="wz-nav wide" aria-label="Step navigation"><div class="in">
+  <button type="button" class="secondary" id="back">&larr; Back</button>
+  <span class="where" id="where"></span>
+  <button type="button" id="next">Next &rarr;</button>
+</div></nav>
+<div class="after">
+  <footer class="disclaimer">Personal project, not for production. Provided "as is", without warranty of any kind, under the <a href="https://github.com/avd-ops/avd-benchmark/blob/main/LICENSE">MIT License</a>. Not affiliated with, endorsed by or supported by my employer or Microsoft. Contributions and forks are welcome: <a href="https://github.com/avd-ops/avd-benchmark">avd-benchmark on GitHub</a>.</footer>
+  <p class="credit">A <a href="https://prignano.ai/">prignano.ai</a> production</p>
+</div>
+<script src="benchmark-core.js"></script>
+<script src="portal.js"></script>
+</body>
+</html>

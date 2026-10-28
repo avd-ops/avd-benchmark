@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "scripts": {
+    "Invoke-AvdBenchmark.ps1": {
+      "cloudshell-pwsh": "tested",
+      "cloudshell-bash": "tested",
+      "windows": "tested",
+      "macos": "untested",
+      "twin": "scripts/run-benchmark.sh",
+      "requires": "pwsh 7.2+ (Az modules for live host-pool or sandbox runs)",
+      "evidence": "tests/AvdBenchmark.Tests.ps1 offline fixture and redaction suite"
+    },
+    "scripts/run-benchmark.sh": {
+      "cloudshell-pwsh": "tested",
+      "cloudshell-bash": "tested",
+      "windows": "tested",
+      "macos": "untested",
+      "twin": "Invoke-AvdBenchmark.ps1",
+      "requires": "bash 3.2+, pwsh 7.2+",
+      "evidence": "tests/AvdBenchmark.Tests.ps1 and tests/portal.test.mjs"
+    }
+  }
+}
