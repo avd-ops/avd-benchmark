@@ -48,6 +48,8 @@ test('portal HTML follows all avd-ops portal rules: shell portal class, notice b
   }
   assert.doesNotMatch(html, /<style|\sstyle="|\son[a-z]+\s*=/i, 'no inline styles or event handlers');
   assert.doesNotMatch(html, /<script(?![^>]*\ssrc=)[^>]*>/, 'no inline script blocks');
+  assert.match(html, /class="iconbtn dev"/);
+  assert.match(html, /Validate &amp; Submit Benchmark Evidence<span class="dev-id"> \(C25\)<\/span>/);
   assert.match(html, /<p class="credit">A <a href="https:\/\/prignano\.ai\/">prignano\.ai<\/a> production<\/p>/);
 
   for (const f of ['site/portal/index.html', 'site/portal/portal.css', 'site/portal/benchmark-core.js', 'site/portal/portal.js']) {

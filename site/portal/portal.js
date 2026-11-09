@@ -7,10 +7,18 @@
   if (!core) return;
 
   const STEPS = [
-    { id: 'explore', stage: 'Explore', label: '1. Explorer (Compare)' },
-    { id: 'run', stage: 'Run', label: '2. Run Harness' },
-    { id: 'submit', stage: 'Submit', label: '3. Validate & Submit (C25)' }
+    { id: 'explore', stage: 'Explore', label: '1. Explorer (Compare)', devLabel: '1. Explorer (Compare)' },
+    { id: 'run', stage: 'Run', label: '2. Run Harness', devLabel: '2. Run Harness' },
+    { id: 'submit', stage: 'Submit', label: '3. Validate & Submit', devLabel: '3. Validate & Submit (C25)' }
   ];
+
+  function isDevMode() {
+    return Boolean(window.AvdOpsDev && typeof window.AvdOpsDev.isOn === 'function' && window.AvdOpsDev.isOn());
+  }
+
+  function stepLabel(s) {
+    return isDevMode() && s.devLabel ? s.devLabel : s.label;
+  }
 
   let currentStep = 0;
   let corpusData = { profiles: [], records: [] };
@@ -30,6 +38,7 @@
     clearChildren(bar);
 
     STEPS.forEach(function (s, idx) {
+      const lbl = stepLabel(s);
       const li = document.createElement('li');
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -39,7 +48,7 @@
       num.className = 'n';
       num.textContent = String(idx + 1);
       const txt = document.createElement('span');
-      txt.textContent = s.label;
+      txt.textContent = lbl;
       btn.appendChild(num);
       btn.appendChild(txt);
       btn.addEventListener('click', function () {
@@ -58,7 +67,7 @@
       const segBtn = document.createElement('button');
       segBtn.type = 'button';
       segBtn.className = idx === currentStep ? 'seg current' : 'seg';
-      segBtn.setAttribute('aria-label', s.label);
+      segBtn.setAttribute('aria-label', lbl);
       segBtn.addEventListener('click', function () {
         showStep(idx);
       });
@@ -78,7 +87,7 @@
     const where = byId('where');
     if (backBtn) backBtn.disabled = currentStep === 0;
     if (nextBtn) nextBtn.disabled = currentStep === STEPS.length - 1;
-    if (where) where.textContent = `Step ${currentStep + 1} of ${STEPS.length}: ${STEPS[currentStep].label}`;
+    if (where) where.textContent = `Step ${currentStep + 1} of ${STEPS.length}: ${stepLabel(STEPS[currentStep])}`;
   }
 
   function showStep(idx) {
@@ -225,7 +234,9 @@
       reply.className = 'reply';
       const bl = document.createElement('p');
       bl.className = 'bl good';
-      bl.textContent = `Valid C25 benchmark result (${res.doc.id}). Zero leaks detected.`;
+      bl.textContent = isDevMode()
+        ? `Valid Benchmark Evidence (C25) result (${res.doc.id}). Zero leaks detected.`
+        : `Valid Benchmark Evidence result (${res.doc.id}). Zero leaks detected.`;
       const cite = document.createElement('p');
       cite.className = 'muted';
       cite.textContent = `Citation: ${core.buildCitation(res.doc)}`;
@@ -240,7 +251,7 @@
       const errBox = document.createElement('div');
       errBox.className = 'errors';
       const strong = document.createElement('strong');
-      strong.textContent = 'C25 validation failed:';
+      strong.textContent = isDevMode() ? 'Benchmark Evidence (C25) validation failed:' : 'Benchmark Evidence validation failed:';
       const ul = document.createElement('ul');
       res.errors.forEach(function (e) {
         const li = document.createElement('li');
@@ -259,6 +270,10 @@
 
   function init() {
     renderStepper();
+    window.addEventListener('avd-ops-devmode', function () {
+      renderStepper();
+      if (byId('c25-input') && byId('c25-input').value.trim()) runValidation();
+    });
 
     const backBtn = byId('back');
     const nextBtn = byId('next');
