@@ -21,12 +21,12 @@
 <div class="full"><ul><li><strong>Personal project, not for production.</strong> Provided "as is", without warranty of any kind (<a href="https://github.com/avd-ops/avd-benchmark/blob/main/LICENSE">MIT License</a>).</li>
 <li>Built on my own time for research and learning. Not affiliated with, endorsed by or supported by my employer or Microsoft, and not an official Microsoft product.</li>
 <li>Don't run any of it in production. Active synthetic benchmarks generate guest and storage load. Contributions and forks are welcome and encouraged.</li></ul></div></details>
-<div class="tools"><button class="iconbtn theme" type="button" aria-label="Switch theme"><svg class="sun" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 1.8v2.2M10 16v2.2M1.8 10H4M16 10h2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6"/></svg><svg class="moon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z"/></svg></button></div></div></header>
+<div class="tools"><button class="iconbtn dev" type="button" aria-pressed="false" aria-label="Show contract and decision IDs (dev mode)" title="Show contract and decision IDs (dev mode)"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5 3 10l3.5 3.5M13.5 6.5 17 10l-3.5 3.5M11.2 4.5 8.8 15.5"/></svg></button><button class="iconbtn theme" type="button" aria-label="Switch theme"><svg class="sun" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 1.8v2.2M10 16v2.2M1.8 10H4M16 10h2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6"/></svg><svg class="moon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z"/></svg></button></div></div></header>
 
 <main class="wz-layout" id="main">
   <header class="top wz-rail">
     <div class="title"><h1>AVD benchmark portal</h1>
-      <p class="purpose">Compare <a href="https://github.com/avd-ops/avd-assess">avd-assess</a> baselines, generate Tier 1 harness commands, and validate C25 evidence in your browser.</p></div>
+      <p class="purpose">Compare <a href="https://github.com/avd-ops/avd-assess">avd-assess</a> baselines, generate Tier 1 harness commands, and validate Benchmark Evidence<span class="dev-id"> (C25)</span> in your browser.</p></div>
     <ol class="wz-list" id="steps" aria-label="Benchmark portal tabs"></ol>
     <ol class="wz-progress" id="steps-bar" aria-label="Benchmark portal tabs"></ol>
   </header>
@@ -170,14 +170,14 @@ pwsh -NoLogo -File ./Invoke-AvdBenchmark.ps1 -ProfileId multisession-density -Wo
   </section>
 
   <section class="wz-stage hidden" id="stage-submit" data-step="submit" aria-labelledby="submit-title">
-    <h2 id="submit-title">Validate &amp; Submit Evidence (C25)</h2>
-    <p class="purpose">Validate a local C25 JSON file in your browser and open a prefilled GitHub Issue Form on avd-assess.</p>
-    <label class="field" for="c25-input"><span>Paste a C25 (avd-benchmark-result/v1) JSON document</span>
+    <h2 id="submit-title">Validate &amp; Submit Benchmark Evidence<span class="dev-id"> (C25)</span></h2>
+    <p class="purpose">Validate a local Benchmark Evidence<span class="dev-id"> (C25)</span> JSON file in your browser and open a prefilled GitHub Issue Form on avd-assess.</p>
+    <label class="field" for="c25-input"><span>Paste a Benchmark Evidence<span class="dev-id"> (C25, avd-benchmark-result/v1)</span> JSON document</span>
       <textarea class="paste" id="c25-input" rows="10" spellcheck="false" autocomplete="off" placeholder="{ &quot;schema&quot;: &quot;avd-benchmark-result/v1&quot;, ... }"></textarea>
     </label>
     <div class="actions">
-      <button type="button" id="c25-validate-btn">Validate C25 &amp; scan for leaks</button>
-      <button type="button" class="secondary" id="c25-load-sample">Load sample C25 record</button>
+      <button type="button" id="c25-validate-btn">Validate Benchmark Evidence<span class="dev-id"> (C25)</span> &amp; scan for leaks</button>
+      <button type="button" class="secondary" id="c25-load-sample">Load sample Benchmark Evidence<span class="dev-id"> (C25)</span> record</button>
       <a class="btnlink secondary hidden" id="c25-submit-link" href="#" target="_blank" rel="noopener">Open prefilled avd-assess issue form</a>
     </div>
     <div id="c25-result" class="gap" aria-live="polite"></div>
