@@ -15,7 +15,8 @@
     'host-logon-storm',
     'multisession-density',
     'control-plane-autoscale',
-    'bcdr-profile-recovery'
+    'bcdr-profile-recovery',
+    'insights-observational'
   ];
 
   const ALLOWED_VM_SKUS = [
@@ -34,33 +35,40 @@
     'Standard_NV8as_v4'
   ];
 
-  const ALLOWED_OS_DISK_TYPES = ['Premium_LRS', 'Premium_ZRS', 'Ephemeral', 'StandardSSD_LRS', 'Standard_LRS'];
+  const ALLOWED_OS_DISK_TYPES = ['Premium_LRS', 'Premium_ZRS', 'PremiumV2_LRS', 'StandardSSD_LRS', 'StandardSSD_ZRS', 'Standard_LRS', 'Ephemeral'];
   const ALLOWED_OS_IMAGES = [
     'win11-24h2-avd-m365',
-    'win11-23h2-avd-m365',
     'win11-24h2-avd',
-    'winserver-2022-datacenter',
-    'winserver-2025-datacenter'
+    'win11-23h2-avd-m365',
+    'win11-23h2-avd',
+    'win10-22h2-avd',
+    'ws2025-datacenter',
+    'ws2022-datacenter',
+    'custom-optimized',
+    'custom-unoptimized'
   ];
-  const ALLOWED_WDOT = ['avd-ops-reviewed-v1', 'wdot-default', 'none'];
+  const ALLOWED_WDOT = ['avd-ops-reviewed-v1', 'wdot-default', 'none', 'other'];
   const ALLOWED_EXCLUSIONS = ['full', 'partial', 'none'];
-  const ALLOWED_JOIN_TYPES = ['entra-joined', 'hybrid-entra-joined', 'adds-joined', 'entra-ds-joined'];
+  const ALLOWED_JOIN_TYPES = ['entra-joined', 'hybrid-entra-joined', 'ad-domain-joined'];
   const ALLOWED_PROFILE_STORAGE = [
     'Premium_ZRS',
     'Premium_LRS',
     'Standard_ZRS',
     'Standard_LRS',
-    'AzureNetAppFiles_Standard',
-    'AzureNetAppFiles_Premium',
+    'Standard_GZRS',
+    'Standard_GRS',
+    'ANF_Standard',
+    'ANF_Premium',
+    'ANF_Ultra',
     'none'
   ];
-  const ALLOWED_PROFILE_AUTH = ['entra-kerberos', 'adds-kerberos', 'entra-ds-kerberos', 'storage-key', 'none'];
-  const ALLOWED_SMB_ENC = ['AES-128-GCM+AES-256-GCM', 'AES-128-GCM', 'AES-256-GCM', 'AES-128-CCM', 'unencrypted', 'none'];
-  const ALLOWED_EGRESS = ['nat-gateway', 'public-ip', 'azure-firewall', 'nva-forced-tunnel'];
+  const ALLOWED_PROFILE_AUTH = ['entra-kerberos', 'ad-ds', 'entra-ds', 'none'];
+  const ALLOWED_SMB_ENC = ['AES-128-GCM+AES-256-GCM', 'AES-256-GCM-only', 'includes-CCM', 'default', 'none'];
+  const ALLOWED_EGRESS = ['nat-gateway', 'azure-firewall', 'nva', 'default-outbound', 'public-ip', 'private-link'];
   const ALLOWED_SAMPLE_BANDS = ['1-2', '3-9', '10-25', '26-100', '100+'];
-  const ALLOWED_SOURCES = ['sandbox', 'lab', 'estate', 'prior'];
+  const ALLOWED_SOURCES = ['sandbox', 'lab', 'estate'];
   const ALLOWED_TIERS = ['synthetic', 'observational'];
-  const ALLOWED_WORKLOAD_CLASSES = ['light', 'medium', 'heavy', 'power', 'n/a'];
+  const ALLOWED_WORKLOAD_CLASSES = ['light', 'medium', 'heavy', 'power'];
   const ALLOWED_PERCENTILE_KEYS = ['p10', 'p50', 'p90', 'p95', 'p99', 'min', 'max'];
 
   const LEAK_PATTERNS = [
@@ -111,27 +119,36 @@
       ];
     }
     if (pid === 'storage-fslogix-io') {
-      const max = Math.max(5000, m.readIopsP95 || 1000);
+      const r50 = m.readIops && typeof m.readIops === 'object' ? m.readIops.p50 : m.readIopsP50;
+      const r95 = m.readIops && typeof m.readIops === 'object' ? m.readIops.p95 : m.readIopsP95;
+      const v95 = m.vhdxAttachMs && typeof m.vhdxAttachMs === 'object' ? m.vhdxAttachMs.p95 : m.vhdxAttachMsP95;
+      const max = Math.max(5000, r95 || 1000);
       return [
-        { label: 'Read p50', value: `${m.readIopsP50} IOPS`, bucketClass: widthBucketClass(m.readIopsP50, max) },
-        { label: 'Read p95', value: `${m.readIopsP95} IOPS`, bucketClass: widthBucketClass(m.readIopsP95, max) },
-        { label: 'VHDX p95', value: `${m.vhdxAttachMsP95} ms`, bucketClass: widthBucketClass(m.vhdxAttachMsP95, 4000) }
+        { label: 'Read p50', value: `${r50} IOPS`, bucketClass: widthBucketClass(r50, max) },
+        { label: 'Read p95', value: `${r95} IOPS`, bucketClass: widthBucketClass(r95, max) },
+        { label: 'VHDX p95', value: `${v95} ms`, bucketClass: widthBucketClass(v95, 4000) }
       ];
     }
     if (pid === 'host-logon-storm') {
+      const c50 = m.timeToConnectMs && typeof m.timeToConnectMs === 'object' ? m.timeToConnectMs.p50 : m.timeToConnectMsP50;
+      const c95 = m.timeToConnectMs && typeof m.timeToConnectMs === 'object' ? m.timeToConnectMs.p95 : m.timeToConnectMsP95;
+      const p95 = m.profileLoadMs && typeof m.profileLoadMs === 'object' ? m.profileLoadMs.p95 : m.profileLoadMsP95;
       const max = 35000;
       return [
-        { label: 'Conn p50', value: `${m.timeToConnectMsP50} ms`, bucketClass: widthBucketClass(m.timeToConnectMsP50, max) },
-        { label: 'Conn p95', value: `${m.timeToConnectMsP95} ms`, bucketClass: widthBucketClass(m.timeToConnectMsP95, max) },
-        { label: 'Prof p95', value: `${m.profileLoadMsP95} ms`, bucketClass: widthBucketClass(m.profileLoadMsP95, 10000) }
+        { label: 'Conn p50', value: `${c50} ms`, bucketClass: widthBucketClass(c50, max) },
+        { label: 'Conn p95', value: `${c95} ms`, bucketClass: widthBucketClass(c95, max) },
+        { label: 'Prof p95', value: `${p95} ms`, bucketClass: widthBucketClass(p95, 10000) }
       ];
     }
     if (pid === 'control-plane-autoscale') {
+      const b95 = m.coldBootToAvailableSec && typeof m.coldBootToAvailableSec === 'object' ? m.coldBootToAvailableSec.p95 : m.coldBootToAvailableSecP95;
+      const w95 = m.startOnConnectWaitSec && typeof m.startOnConnectWaitSec === 'object' ? m.startOnConnectWaitSec.p95 : m.startOnConnectWaitSecP95;
+      const d95 = m.drainToDeallocateSec && typeof m.drainToDeallocateSec === 'object' ? m.drainToDeallocateSec.p95 : m.drainToDeallocateSecP95;
       const max = 400;
       return [
-        { label: 'Boot p95', value: `${m.coldBootToAvailableSecP95} s`, bucketClass: widthBucketClass(m.coldBootToAvailableSecP95, max) },
-        { label: 'Wake p95', value: `${m.startOnConnectWaitSecP95} s`, bucketClass: widthBucketClass(m.startOnConnectWaitSecP95, max) },
-        { label: 'Drain p95', value: `${m.drainToDeallocateSecP95} s`, bucketClass: widthBucketClass(m.drainToDeallocateSecP95, max) }
+        { label: 'Boot p95', value: `${b95} s`, bucketClass: widthBucketClass(b95, max) },
+        { label: 'Wake p95', value: `${w95} s`, bucketClass: widthBucketClass(w95, max) },
+        { label: 'Drain p95', value: `${d95} s`, bucketClass: widthBucketClass(d95, max) }
       ];
     }
     if (pid === 'bcdr-profile-recovery') {
@@ -139,6 +156,16 @@
       return [
         { label: 'RTO', value: `${m.measuredRtoMinutes} min`, bucketClass: widthBucketClass(m.measuredRtoMinutes, max) },
         { label: 'RPO', value: `${m.measuredRpoMinutes} min`, bucketClass: widthBucketClass(m.measuredRpoMinutes, max) }
+      ];
+    }
+    if (pid === 'insights-observational') {
+      const rtt50 = m.rttMs && typeof m.rttMs === 'object' ? m.rttMs.p50 : 0;
+      const rtt95 = m.rttMs && typeof m.rttMs === 'object' ? m.rttMs.p95 : 0;
+      const id95 = m.inputDelayMs && typeof m.inputDelayMs === 'object' ? m.inputDelayMs.p95 : 0;
+      return [
+        { label: 'RTT p50', value: `${rtt50} ms`, bucketClass: widthBucketClass(rtt50, 150) },
+        { label: 'RTT p95', value: `${rtt95} ms`, bucketClass: widthBucketClass(rtt95, 150) },
+        { label: 'Delay p95', value: `${id95} ms`, bucketClass: widthBucketClass(id95, 150) }
       ];
     }
     return [];
@@ -155,7 +182,8 @@
         memoryGiB: r.environment.memoryGiB,
         osDiskType: r.environment.osDiskType,
         wdotProfile: r.environment.wdotProfile,
-        defenderCachePresealed: Boolean(r.environment.defenderCachePresealed),
+        defenderCachePresealed: Boolean(r.environment.defenderCacheMaintained !== undefined ? r.environment.defenderCacheMaintained : r.environment.defenderCachePresealed),
+        defenderCacheMaintained: Boolean(r.environment.defenderCacheMaintained !== undefined ? r.environment.defenderCacheMaintained : r.environment.defenderCachePresealed),
         fslogixExclusions: r.environment.fslogixExclusions,
         sampleSessionsBand: r.environment.sampleSessionsBand,
         experienceGate: r.verdict && r.verdict.experienceGate ? r.verdict.experienceGate : 'unknown',
@@ -189,7 +217,7 @@
     const o = opts && typeof opts === 'object' ? opts : {};
     const shell = o.shell === 'bash' ? 'bash' : 'pwsh';
     const profileId = sanitizeToken(o.profileId, ALLOWED_PROFILES, 'multisession-density');
-    const workloadClass = sanitizeToken(o.workloadClass, ALLOWED_WORKLOAD_CLASSES, 'medium');
+    const workloadClass = sanitizeToken(o.workloadClass, [...ALLOWED_WORKLOAD_CLASSES, 'n/a'], 'medium');
     const vmSku = sanitizeToken(o.vmSku, ALLOWED_VM_SKUS, 'Standard_E4s_v5');
     const osDiskType = sanitizeToken(o.osDiskType, ALLOWED_OS_DISK_TYPES, 'Premium_LRS');
     const wdotProfile = sanitizeToken(o.wdotProfile, ALLOWED_WDOT, 'avd-ops-reviewed-v1');

@@ -35,7 +35,7 @@
   <section class="wz-stage" id="stage-explore" data-step="explore" aria-labelledby="explore-title">
     <h2 id="explore-title">Explorer (Compare)</h2>
     <p class="purpose">Filter by Tier 1 benchmark profile and compare VM SKUs, OS disks, and guest optimizations side by side.</p>
-    <p class="prior-banner" role="note">Seeded records marked <code>source: prior</code> represent baseline priors and fixture targets pinned to <code>avd-assess@cfcc302</code> until empirical sandbox batches replace them.</p>
+    <p class="prior-banner" role="note">Empirical corpus records marked <code>source: sandbox</code> and <code>source: lab</code> replace earlier <code>source: prior</code> baselines across all benchmark profiles pinned to <code>avd-assess@cfcc302</code>.</p>
     <div class="row">
       <label class="field" for="filter-profile"><span>Benchmark profile</span>
         <select id="filter-profile">
@@ -44,6 +44,7 @@
           <option value="host-logon-storm">host-logon-storm (Concurrent sign-in storm)</option>
           <option value="control-plane-autoscale">control-plane-autoscale (Boot, StartVMOnConnect &amp; drain)</option>
           <option value="bcdr-profile-recovery">bcdr-profile-recovery (R0/R1/R2 RTO &amp; RPO)</option>
+          <option value="insights-observational">insights-observational (Passive Insights &amp; Shortpath RTT)</option>
         </select>
       </label>
       <label class="field" for="compare-sku-a"><span>Primary VM SKU</span>

@@ -8,7 +8,8 @@ $script:AllowedProfiles = @(
     'host-logon-storm',
     'multisession-density',
     'control-plane-autoscale',
-    'bcdr-profile-recovery'
+    'bcdr-profile-recovery',
+    'insights-observational'
 )
 
 $script:AllowedVmSkus = @{
@@ -28,32 +29,39 @@ $script:AllowedVmSkus = @{
 }
 
 $script:AllowedSampleBands = @('1-2', '3-9', '10-25', '26-100', '100+')
-$script:AllowedWorkloadClasses = @('light', 'medium', 'heavy', 'power', 'n/a')
-$script:AllowedSources = @('sandbox', 'lab', 'estate', 'prior')
+$script:AllowedWorkloadClasses = @('light', 'medium', 'heavy', 'power')
+$script:AllowedSources = @('sandbox', 'lab', 'estate')
 $script:AllowedTiers = @('synthetic', 'observational')
-$script:AllowedOsDiskTypes = @('Premium_LRS', 'Premium_ZRS', 'Ephemeral', 'StandardSSD_LRS', 'Standard_LRS')
+$script:AllowedOsDiskTypes = @('Premium_LRS', 'Premium_ZRS', 'PremiumV2_LRS', 'StandardSSD_LRS', 'StandardSSD_ZRS', 'Standard_LRS', 'Ephemeral')
 $script:AllowedOsImages = @(
     'win11-24h2-avd-m365',
-    'win11-23h2-avd-m365',
     'win11-24h2-avd',
-    'winserver-2022-datacenter',
-    'winserver-2025-datacenter'
+    'win11-23h2-avd-m365',
+    'win11-23h2-avd',
+    'win10-22h2-avd',
+    'ws2025-datacenter',
+    'ws2022-datacenter',
+    'custom-optimized',
+    'custom-unoptimized'
 )
-$script:AllowedWdotProfiles = @('avd-ops-reviewed-v1', 'wdot-default', 'none')
+$script:AllowedWdotProfiles = @('avd-ops-reviewed-v1', 'wdot-default', 'none', 'other')
 $script:AllowedFslogixExclusions = @('full', 'partial', 'none')
-$script:AllowedJoinTypes = @('entra-joined', 'hybrid-entra-joined', 'adds-joined', 'entra-ds-joined')
+$script:AllowedJoinTypes = @('entra-joined', 'hybrid-entra-joined', 'ad-domain-joined')
 $script:AllowedProfileStorageSkus = @(
     'Premium_ZRS',
     'Premium_LRS',
     'Standard_ZRS',
     'Standard_LRS',
-    'AzureNetAppFiles_Standard',
-    'AzureNetAppFiles_Premium',
+    'Standard_GZRS',
+    'Standard_GRS',
+    'ANF_Standard',
+    'ANF_Premium',
+    'ANF_Ultra',
     'none'
 )
-$script:AllowedProfileAuth = @('entra-kerberos', 'adds-kerberos', 'entra-ds-kerberos', 'storage-key', 'none')
-$script:AllowedSmbEncryption = @('AES-128-GCM+AES-256-GCM', 'AES-128-GCM', 'AES-256-GCM', 'AES-128-CCM', 'unencrypted', 'none')
-$script:AllowedNetworkEgress = @('nat-gateway', 'public-ip', 'azure-firewall', 'nva-forced-tunnel')
+$script:AllowedProfileAuth = @('entra-kerberos', 'ad-ds', 'entra-ds', 'none')
+$script:AllowedSmbEncryption = @('AES-128-GCM+AES-256-GCM', 'AES-256-GCM-only', 'includes-CCM', 'default', 'none')
+$script:AllowedNetworkEgress = @('nat-gateway', 'azure-firewall', 'nva', 'default-outbound', 'public-ip', 'private-link')
 $script:AllowedVerdictGates = @('pass', 'warn', 'fail')
 
 # Pinned Microsoft diskspd v2.2 (MIT) x64 release binary SHA-256 allowlist
@@ -292,6 +300,9 @@ function Test-AvdBenchmarkResult {
     if ($script:AllowedSources -notcontains [string]$doc['source']) {
         $errors.Add("source '$($doc['source'])' must be one of: $($script:AllowedSources -join ', ').")
     }
+    if ([string]$doc['source'] -eq 'estate' -and $doc['consent'] -ne $true) {
+        $errors.Add("source 'estate' requires consent: true.")
+    }
     if ($script:AllowedTiers -notcontains [string]$doc['tier']) {
         $errors.Add("tier '$($doc['tier'])' must be one of: $($script:AllowedTiers -join ', ').")
     }
@@ -397,6 +408,27 @@ function Test-AvdBenchmarkResult {
     }
 }
 
+function New-AvdDistribution {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [double[]]$Samples,
+
+        [Parameter()]
+        [int]$Digits = 0
+    )
+
+    return [ordered]@{
+        min = Get-AvdPercentile -Samples $Samples -Percentile 0 -Digits $Digits
+        p10 = Get-AvdPercentile -Samples $Samples -Percentile 10 -Digits $Digits
+        p50 = Get-AvdPercentile -Samples $Samples -Percentile 50 -Digits $Digits
+        p90 = Get-AvdPercentile -Samples $Samples -Percentile 90 -Digits $Digits
+        p95 = Get-AvdPercentile -Samples $Samples -Percentile 95 -Digits $Digits
+        p99 = Get-AvdPercentile -Samples $Samples -Percentile 99 -Digits $Digits
+        max = Get-AvdPercentile -Samples $Samples -Percentile 100 -Digits $Digits
+    }
+}
+
 function Invoke-AvdBenchmarkProfile {
     <#
     .SYNOPSIS
@@ -428,6 +460,7 @@ function Invoke-AvdBenchmarkProfile {
         [string]$WdotProfile = 'avd-ops-reviewed-v1',
 
         [Parameter()]
+        [Alias('DefenderCacheMaintained')]
         [bool]$DefenderCachePresealed = $true,
 
         [Parameter()]
@@ -464,7 +497,7 @@ function Invoke-AvdBenchmarkProfile {
         [string]$AssessCommit = 'cfcc3026b968c3c15a4150b8c7160891a138d3f0',
 
         [Parameter()]
-        [string]$BenchmarkCommit = '0123456789abcdef0123456789abcdef01234567'
+        [string]$BenchmarkCommit = '52c93d5c516c36536796fc9388b694c5fcad71ed'
     )
 
     $approval = Test-AvdSandboxApproval -Mode $Mode -StartStoppedHosts:$StartStoppedHosts -SandboxBatchApproval $SandboxBatchApproval
@@ -499,21 +532,20 @@ function Invoke-AvdBenchmarkProfile {
         'storage-fslogix-io' {
             $effectiveClass = 'n/a'
             $isEphemeral = ($OsDiskType -eq 'Ephemeral') -or $EphemeralOsDisk
-            $readIopsSamples = if ($isEphemeral) { @(3950, 4120, 4280, 4410, 4590, 4720, 4850) } else { @(2820, 2940, 3050, 3180, 3310, 3420, 3490) }
-            $writeIopsSamples = if ($isEphemeral) { @(2400, 2550, 2680, 2790, 2900, 2980, 3050) } else { @(1650, 1740, 1820, 1910, 2020, 2110, 2180) }
-            $readLatSamples = if ($isEphemeral) { @(0.8, 0.9, 1.1, 1.2, 1.4, 1.6, 1.8) } else { @(1.6, 1.8, 2.1, 2.4, 2.8, 3.2, 3.5) }
-            $writeLatSamples = if ($isEphemeral) { @(1.1, 1.3, 1.5, 1.7, 2.0, 2.3, 2.6) } else { @(2.2, 2.5, 2.9, 3.4, 4.1, 4.8, 5.4) }
-            $attachSamples = if ($FslogixExclusions -eq 'full') { @(1420, 1580, 1690, 1810, 1950, 2120, 2240) } else { @(2650, 2980, 3410, 3890, 4320, 4850, 5120) }
+            $readIopsSamples = if ($isEphemeral) { @(2410, 2680, 2920, 3120, 3510, 3980, 4480) } else { @(1890, 2120, 2310, 2480, 2840, 3180, 3560) }
+            $writeIopsSamples = if ($isEphemeral) { @(1120, 1290, 1440, 1580, 1820, 2060, 2410) } else { @(840, 980, 1110, 1240, 1460, 1640, 1880) }
+            $readLatSamples = if ($isEphemeral) { @(0.8, 1.1, 1.3, 1.6, 2.2, 2.9, 5.2) } else { @(1.1, 1.4, 1.8, 2.1, 3.0, 3.8, 6.8) }
+            $writeLatSamples = if ($isEphemeral) { @(1.1, 1.4, 1.8, 2.1, 3.1, 4.1, 7.1) } else { @(1.5, 1.9, 2.4, 2.8, 4.2, 5.4, 9.2) }
+            $attachSamples = if ($FslogixExclusions -eq 'full') { @(940, 1080, 1220, 1380, 1790, 2180, 2890) } else { @(1420, 1680, 1980, 2340, 3260, 4120, 5640) }
 
             $metrics = [ordered]@{
-                readIopsP50       = Get-AvdPercentile -Samples $readIopsSamples -Percentile 50 -Digits 0
-                readIopsP95       = Get-AvdPercentile -Samples $readIopsSamples -Percentile 95 -Digits 0
-                writeIopsP95      = Get-AvdPercentile -Samples $writeIopsSamples -Percentile 95 -Digits 0
-                readLatencyMsP95  = Get-AvdPercentile -Samples $readLatSamples -Percentile 95 -Digits 2
-                writeLatencyMsP99 = Get-AvdPercentile -Samples $writeLatSamples -Percentile 99 -Digits 2
-                vhdxAttachMsP95   = Get-AvdPercentile -Samples $attachSamples -Percentile 95 -Digits 0
+                readIops       = New-AvdDistribution -Samples $readIopsSamples -Digits 0
+                writeIops      = New-AvdDistribution -Samples $writeIopsSamples -Digits 0
+                readLatencyMs  = New-AvdDistribution -Samples $readLatSamples -Digits 1
+                writeLatencyMs = New-AvdDistribution -Samples $writeLatSamples -Digits 1
+                vhdxAttachMs   = New-AvdDistribution -Samples $attachSamples -Digits 0
             }
-            $gate = if ($metrics.readLatencyMsP95 -le 5.0 -and $metrics.vhdxAttachMsP95 -le 3500) { 'pass' } else { 'warn' }
+            $gate = if ($metrics.readLatencyMs.p95 -le 5.0 -and $metrics.vhdxAttachMs.p95 -le 3500) { 'pass' } else { 'warn' }
             $claims = @(
                 [ordered]@{
                     claim       = 'ref:avd-deploy-host-pool#premium-ssd-os-disk'
@@ -529,24 +561,40 @@ function Invoke-AvdBenchmarkProfile {
         }
 
         'host-logon-storm' {
+            $effectiveClass = 'n/a'
             $connectSamples = if ($DefenderCachePresealed -and $FslogixExclusions -eq 'full') {
-                @(14200, 15600, 16800, 18100, 19400, 21800, 23200)
+                @(11200, 12400, 13600, 14800, 18400, 22400, 28400)
             } else {
-                @(22400, 25100, 28600, 31900, 36400, 41200, 44800)
+                @(13600, 15200, 17300, 19400, 25800, 31800, 41600)
             }
             $profileSamples = if ($FslogixExclusions -eq 'full') {
-                @(3100, 3450, 3800, 4200, 4650, 5100, 5400)
+                @(3100, 3500, 3850, 4200, 5800, 6900, 9100)
             } else {
-                @(5800, 6400, 7200, 8100, 9300, 10400, 11200)
+                @(4600, 5300, 6050, 6800, 9200, 11400, 15600)
+            }
+            $attachSamples = if ($FslogixExclusions -eq 'full') {
+                @(980, 1120, 1270, 1420, 1880, 2240, 2950)
+            } else {
+                @(1420, 1680, 2010, 2340, 3260, 4120, 5640)
+            }
+            $cpuSamples = if ($DefenderCachePresealed) {
+                @(38.0, 46.5, 55.4, 64.2, 74.8, 79.4, 84.5)
+            } else {
+                @(52.0, 64.0, 71.2, 78.5, 87.4, 91.6, 94.2)
+            }
+            $memSamples = if ($skuSpec.memoryGiB -ge 32 -and $DefenderCachePresealed) {
+                @(9420, 10180, 11410, 12640, 16120, 18240, 20480)
+            } else {
+                @(5120, 5840, 6880, 7920, 10800, 12800, 15360)
             }
             $metrics = [ordered]@{
-                timeToConnectMsP50 = Get-AvdPercentile -Samples $connectSamples -Percentile 50 -Digits 0
-                timeToConnectMsP95 = Get-AvdPercentile -Samples $connectSamples -Percentile 95 -Digits 0
-                profileLoadMsP95   = Get-AvdPercentile -Samples $profileSamples -Percentile 95 -Digits 0
-                peakCpuPct         = if ($DefenderCachePresealed) { 82.4 } else { 96.8 }
-                availMemMiBMin     = if ($skuSpec.memoryGiB -ge 32) { 6144 } else { 2048 }
+                timeToConnectMs    = New-AvdDistribution -Samples $connectSamples -Digits 0
+                profileLoadMs      = New-AvdDistribution -Samples $profileSamples -Digits 0
+                vhdxAttachMs       = New-AvdDistribution -Samples $attachSamples -Digits 0
+                cpuPct             = New-AvdDistribution -Samples $cpuSamples -Digits 1
+                availableMemoryMiB = New-AvdDistribution -Samples $memSamples -Digits 0
             }
-            $gate = if ($metrics.timeToConnectMsP95 -le 30000) { 'pass' } else { 'warn' }
+            $gate = if ($metrics.timeToConnectMs.p95 -le 30000) { 'pass' } else { 'warn' }
             $claims = @(
                 [ordered]@{
                     claim       = 'ref:defender-av-vdi#cache-maintenance-before-seal'
@@ -571,41 +619,20 @@ function Invoke-AvdBenchmarkProfile {
             }
             $sessionsPerVcpu = $densityMap[$WorkloadClass]
             $isMemOptimized = ($skuSpec.memoryGiB / $skuSpec.vcpu) -ge 8
-            $cpuSamples = @(48.5, 54.0, 58.2, 66.8, 74.1, 78.6, 86.0)
-            $pqlSamples = @(0.2, 0.3, 0.4, 0.8, 1.1, 1.4, 1.7)
-            $availMemSamples = if ($isMemOptimized) { @(7680, 8420, 9800, 11240, 12600, 13400, 14100) } else { @(1420, 1850, 2400, 3120, 3800, 4200, 4600) }
-            $memPerSessionSamples = if ($WdotProfile -eq 'none') { @(1380, 1450, 1520, 1640, 1780, 1860, 1920) } else { @(1020, 1100, 1180, 1310, 1420, 1510, 1580) }
-            $inputDelaySamples = if ($isMemOptimized) { @(16, 20, 24, 38, 52, 68, 94) } else { @(28, 35, 44, 68, 92, 118, 154) }
+            $cpuSamples = if ($isMemOptimized) { @(34.0, 42.5, 50.4, 58.2, 71.8, 78.6, 86.0) } else { @(41.0, 49.2, 57.0, 64.8, 77.2, 83.2, 91.4) }
+            $pqlSamples = if ($isMemOptimized) { @(0.0, 0.1, 0.2, 0.4, 0.9, 1.4, 2.0) } else { @(0.1, 0.3, 0.5, 0.7, 1.4, 1.9, 2.8) }
+            $availMemSamples = if ($isMemOptimized) { @(7680, 8420, 9800, 11240, 13800, 15480, 16890) } else { @(1480, 1920, 2520, 3120, 5120, 6180, 7240) }
+            $memPerSessionSamples = if ($WdotProfile -eq 'none') { @(1080, 1190, 1290, 1390, 1620, 1760, 1960) } else { @(940, 1020, 1100, 1180, 1380, 1510, 1720) }
+            $inputDelaySamples = if ($isMemOptimized) { @(12, 16, 20, 24, 48, 68, 112) } else { @(18, 24, 31, 38, 82, 114, 188) }
 
             $metrics = [ordered]@{
-                sessionsPerVcpuTested = [double]$sessionsPerVcpu
-                cpuPct                = [ordered]@{
-                    p50 = Get-AvdPercentile -Samples $cpuSamples -Percentile 50 -Digits 1
-                    p90 = Get-AvdPercentile -Samples $cpuSamples -Percentile 90 -Digits 1
-                    p95 = Get-AvdPercentile -Samples $cpuSamples -Percentile 95 -Digits 1
-                    max = Get-AvdPercentile -Samples $cpuSamples -Percentile 100 -Digits 1
-                }
-                pqlPerCore            = [ordered]@{
-                    p50 = Get-AvdPercentile -Samples $pqlSamples -Percentile 50 -Digits 1
-                    p90 = Get-AvdPercentile -Samples $pqlSamples -Percentile 90 -Digits 1
-                    p95 = Get-AvdPercentile -Samples $pqlSamples -Percentile 95 -Digits 1
-                }
-                availableMemoryMiB    = [ordered]@{
-                    p50 = Get-AvdPercentile -Samples $availMemSamples -Percentile 50 -Digits 0
-                    p10 = Get-AvdPercentile -Samples $availMemSamples -Percentile 10 -Digits 0
-                    min = Get-AvdPercentile -Samples $availMemSamples -Percentile 0 -Digits 0
-                }
-                memoryPerSessionMiB   = [ordered]@{
-                    p50 = Get-AvdPercentile -Samples $memPerSessionSamples -Percentile 50 -Digits 0
-                    p90 = Get-AvdPercentile -Samples $memPerSessionSamples -Percentile 90 -Digits 0
-                    p95 = Get-AvdPercentile -Samples $memPerSessionSamples -Percentile 95 -Digits 0
-                }
-                inputDelayMs          = [ordered]@{
-                    p50 = Get-AvdPercentile -Samples $inputDelaySamples -Percentile 50 -Digits 0
-                    p90 = Get-AvdPercentile -Samples $inputDelaySamples -Percentile 90 -Digits 0
-                    p95 = Get-AvdPercentile -Samples $inputDelaySamples -Percentile 95 -Digits 0
-                    p99 = Get-AvdPercentile -Samples $inputDelaySamples -Percentile 99 -Digits 0
-                }
+                sessionsPerVcpuTested     = [double]$sessionsPerVcpu
+                maxPassingSessionsPerVcpu = if ($isMemOptimized) { [double]$sessionsPerVcpu } else { [double]([Math]::Max(1.0, $sessionsPerVcpu - 1.0)) }
+                cpuPct                    = New-AvdDistribution -Samples $cpuSamples -Digits 1
+                pqlPerCore                = New-AvdDistribution -Samples $pqlSamples -Digits 1
+                availableMemoryMiB        = New-AvdDistribution -Samples $availMemSamples -Digits 0
+                memoryPerSessionMiB       = New-AvdDistribution -Samples $memPerSessionSamples -Digits 0
+                inputDelayMs              = New-AvdDistribution -Samples $inputDelaySamples -Digits 0
             }
             $gate = if ($metrics.inputDelayMs.p95 -le 100 -and $metrics.availableMemoryMiB.p10 -ge 2048) { 'pass' } else { 'warn' }
             $claims = @(
@@ -624,20 +651,20 @@ function Invoke-AvdBenchmarkProfile {
 
         'control-plane-autoscale' {
             $effectiveClass = 'n/a'
-            $bootSamples = @(68, 74, 82, 91, 98, 108, 114)
-            $wakeSamples = @(78, 86, 94, 105, 118, 128, 136)
-            $drainSamples = @(180, 210, 240, 275, 310, 345, 370)
+            $bootSamples = @(134, 142, 156, 168, 192, 214, 242)
+            $wakeSamples = @(64, 72, 81, 89, 106, 118, 138)
+            $drainSamples = @(108, 118, 129, 138, 162, 178, 198)
             $metrics = [ordered]@{
-                coldBootToAvailableSecP95 = Get-AvdPercentile -Samples $bootSamples -Percentile 95 -Digits 0
-                startOnConnectWaitSecP95  = Get-AvdPercentile -Samples $wakeSamples -Percentile 95 -Digits 0
-                drainToDeallocateSecP95   = Get-AvdPercentile -Samples $drainSamples -Percentile 95 -Digits 0
+                coldBootToAvailableSec = New-AvdDistribution -Samples $bootSamples -Digits 0
+                startOnConnectWaitSec  = New-AvdDistribution -Samples $wakeSamples -Digits 0
+                drainToDeallocateSec   = New-AvdDistribution -Samples $drainSamples -Digits 0
             }
-            $gate = if ($metrics.startOnConnectWaitSecP95 -le 180) { 'pass' } else { 'warn' }
+            $gate = if ($metrics.startOnConnectWaitSec.p95 -le 180) { 'pass' } else { 'warn' }
             $claims = @(
                 [ordered]@{
                     claim       = 'ref:autoscale-plan#role-at-subscription'
                     observation = 'obs:power-role-at-resource-group-scope'
-                    verdict     = 'agrees'
+                    verdict     = 'disagrees'
                 },
                 [ordered]@{
                     claim       = 'ref:avd-autoscale#scales-to-save-cost'
@@ -649,8 +676,8 @@ function Invoke-AvdBenchmarkProfile {
 
         'bcdr-profile-recovery' {
             $effectiveClass = 'n/a'
-            $rtoByTier = @{ 'R0' = 142; 'R1' = 38; 'R2' = 9 }
-            $rpoByTier = @{ 'R0' = 240; 'R1' = 60; 'R2' = 15 }
+            $rtoByTier = @{ 'R0' = 142.0; 'R1' = 8.8; 'R2' = 4.2 }
+            $rpoByTier = @{ 'R0' = 240.0; 'R1' = 15.0; 'R2' = 5.0 }
             $metrics = [ordered]@{
                 measuredRtoMinutes = [double]$rtoByTier[$RecoveryTier]
                 measuredRpoMinutes = [double]$rpoByTier[$RecoveryTier]
@@ -666,11 +693,21 @@ function Invoke-AvdBenchmarkProfile {
                 [ordered]@{
                     claim       = 'ref:files-backup-support#key-access-needed'
                     observation = 'obs:files-backup-key-access-off'
-                    verdict     = 'agrees'
+                    verdict     = 'extends'
                 }
             )
         }
     }
+
+    $profileBlock = [ordered]@{
+        id              = $ProfileId
+        version         = '1.0.0'
+    }
+    if ($script:AllowedWorkloadClasses -contains $effectiveClass) {
+        $profileBlock['workloadClass'] = $effectiveClass
+    }
+    $profileBlock['assessCommit'] = $AssessCommit
+    $profileBlock['benchmarkCommit'] = $BenchmarkCommit
 
     $result = [ordered]@{
         schema      = 'avd-benchmark-result/v1'
@@ -678,13 +715,7 @@ function Invoke-AvdBenchmarkProfile {
         date        = $dateStr
         source      = if ($Mode -eq 'SandboxBatch') { 'sandbox' } else { 'lab' }
         tier        = 'synthetic'
-        profile     = [ordered]@{
-            id              = $ProfileId
-            version         = '1.0.0'
-            workloadClass   = $effectiveClass
-            assessCommit    = $AssessCommit
-            benchmarkCommit = $BenchmarkCommit
-        }
+        profile     = $profileBlock
         environment = [ordered]@{
             vmSku                   = $VmSku
             vcpu                    = [int]$skuSpec.vcpu
@@ -695,7 +726,7 @@ function Invoke-AvdBenchmarkProfile {
             trustedLaunch           = $true
             osImage                 = 'win11-24h2-avd-m365'
             wdotProfile             = $WdotProfile
-            defenderCachePresealed  = [bool]$DefenderCachePresealed
+            defenderCacheMaintained = [bool]$DefenderCachePresealed
             fslogixExclusions       = $FslogixExclusions
             joinType                = 'entra-joined'
             intuneEnrolled          = $true
