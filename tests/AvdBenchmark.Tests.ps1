@@ -136,4 +136,15 @@ Describe 'AvdBenchmark.psm1 - Fail-Closed Leak & Redaction Guard' {
         ($check.Errors -join ' ') | Should -Match 'sampleHostsBand'
         ($check.Errors -join ' ') | Should -Match 'raw array'
     }
+
+    It 'Validates every empirical C25 record in site/portal/corpus.json cleanly' {
+        $corpusPath = Join-Path $script:RepoRoot 'site' 'portal' 'corpus.json'
+        $corpus = Get-Content -LiteralPath $corpusPath -Raw | ConvertFrom-Json -Depth 12 -AsHashtable
+        $corpus['records'].Count | Should -BeGreaterOrEqual 10
+        foreach ($rec in $corpus['records']) {
+            $check = Test-AvdBenchmarkResult -InputObject $rec
+            $check.IsValid | Should -BeTrue -Because ($check.Errors -join '; ')
+            $rec['source'] | Should -BeIn @('sandbox', 'lab')
+        }
+    }
 }

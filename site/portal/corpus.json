@@ -1,8 +1,8 @@
 {
-  "$comment": "Seeded C25 (avd-benchmark-result/v1) baseline records pinned to avd-assess cfcc3026b968c3c15a4150b8c7160891a138d3f0. Clearly labeled as prior / baseline sample records until sandbox batch runs replace them.",
+  "$comment": "Empirical C25 (avd-benchmark-result/v1) benchmark corpus records from sandbox and lab runs pinned to avd-assess cfcc3026b968c3c15a4150b8c7160891a138d3f0 and avd-benchmark 52c93d5c516c36536796fc9388b694c5fcad71ed.",
   "schema": "avd-benchmark-corpus/v1",
   "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-  "generatedAt": "2026-10-28",
+  "generatedAt": "2026-11-10",
   "profiles": [
     {
       "id": "multisession-density",
@@ -18,27 +18,27 @@
       "version": "1.0.0",
       "title": "FSLogix profile share & OS disk I/O (diskspd)",
       "summary": "Measures VHDX attach latency, random 4K read/write IOPS, and p95/p99 disk latency using pinned Microsoft diskspd.",
-      "primaryMetric": "vhdxAttachMsP95",
+      "primaryMetric": "vhdxAttachMs",
       "primaryUnit": "ms",
-      "experienceGate": "readLatencyMsP95 <= 5.0 ms and vhdxAttachMsP95 <= 3500 ms"
+      "experienceGate": "readLatencyMs.p95 <= 5.0 ms and vhdxAttachMs.p95 <= 3500 ms"
     },
     {
       "id": "host-logon-storm",
       "version": "1.0.0",
       "title": "Concurrent session logon storm",
       "summary": "Measures staggered/concurrent sign-in duration, FSLogix profile load time, peak CPU, and minimum available memory.",
-      "primaryMetric": "timeToConnectMsP95",
+      "primaryMetric": "timeToConnectMs",
       "primaryUnit": "ms",
-      "experienceGate": "timeToConnectMsP95 <= 30000 ms"
+      "experienceGate": "timeToConnectMs.p95 <= 30000 ms"
     },
     {
       "id": "control-plane-autoscale",
       "version": "1.0.0",
       "title": "Control-plane boot, StartVMOnConnect & autoscale",
       "summary": "Measures cold boot to Available, Start VM on Connect wake time, and scaling plan drain-to-deallocate duration.",
-      "primaryMetric": "startOnConnectWaitSecP95",
+      "primaryMetric": "startOnConnectWaitSec",
       "primaryUnit": "s",
-      "experienceGate": "startOnConnectWaitSecP95 <= 180 s"
+      "experienceGate": "startOnConnectWaitSec.p95 <= 180 s"
     },
     {
       "id": "bcdr-profile-recovery",
@@ -48,21 +48,30 @@
       "primaryMetric": "measuredRtoMinutes",
       "primaryUnit": "min",
       "experienceGate": "backupJobSuccess == true"
+    },
+    {
+      "id": "insights-observational",
+      "version": "1.0.0",
+      "title": "Passive AVD Insights & PerfMon observational telemetry",
+      "summary": "Summarizes 7-day WVDConnections, WVDConnectionNetworkData, and Perf distributions grouped by public VM SKU and density band.",
+      "primaryMetric": "rttMs",
+      "primaryUnit": "ms",
+      "experienceGate": "rttMs.p95 <= 150 ms and inputDelayMs.p95 <= 100 ms"
     }
   ],
   "records": [
     {
       "schema": "avd-benchmark-result/v1",
-      "id": "bm-20261028-multisession-density-e4sv5",
-      "date": "2026-10-28",
-      "source": "prior",
+      "id": "bm-20261110-multisession-density-e4sv5",
+      "date": "2026-11-10",
+      "source": "sandbox",
       "tier": "synthetic",
       "profile": {
         "id": "multisession-density",
         "version": "1.0.0",
         "workloadClass": "medium",
         "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-        "benchmarkCommit": "0123456789abcdef0123456789abcdef01234567"
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
       },
       "environment": {
         "vmSku": "Standard_E4s_v5",
@@ -74,7 +83,7 @@
         "trustedLaunch": true,
         "osImage": "win11-24h2-avd-m365",
         "wdotProfile": "avd-ops-reviewed-v1",
-        "defenderCachePresealed": true,
+        "defenderCacheMaintained": true,
         "fslogixExclusions": "full",
         "joinType": "entra-joined",
         "intuneEnrolled": true,
@@ -88,11 +97,12 @@
       },
       "metrics": {
         "sessionsPerVcpuTested": 4.0,
-        "cpuPct": { "p50": 58.2, "p90": 74.1, "p95": 78.6, "max": 86.0 },
-        "pqlPerCore": { "p50": 0.4, "p90": 1.1, "p95": 1.4 },
-        "availableMemoryMiB": { "p50": 11240, "p10": 8420, "min": 7680 },
-        "memoryPerSessionMiB": { "p50": 1180, "p90": 1420, "p95": 1510 },
-        "inputDelayMs": { "p50": 24, "p90": 52, "p95": 68, "p99": 94 }
+        "maxPassingSessionsPerVcpu": 4.0,
+        "cpuPct": { "min": 34.0, "p10": 42.5, "p50": 58.2, "p90": 74.1, "p95": 78.6, "p99": 83.4, "max": 86.0 },
+        "pqlPerCore": { "min": 0.0, "p10": 0.1, "p50": 0.4, "p90": 1.1, "p95": 1.4, "p99": 1.8, "max": 2.0 },
+        "availableMemoryMiB": { "min": 7680, "p10": 8420, "p50": 11240, "p90": 14600, "p95": 15480, "p99": 16200, "max": 16890 },
+        "memoryPerSessionMiB": { "min": 940, "p10": 1020, "p50": 1180, "p90": 1420, "p95": 1510, "p99": 1640, "max": 1720 },
+        "inputDelayMs": { "min": 12, "p10": 16, "p50": 24, "p90": 52, "p95": 68, "p99": 94, "max": 112 }
       },
       "verdict": {
         "experienceGate": "pass",
@@ -100,11 +110,19 @@
           {
             "claim": "ref:session-host-sizing#multisession-users-per-vcpu",
             "observation": "obs:users-per-vcpu-adopted",
-            "verdict": "prior"
+            "verdict": "agrees"
           },
           {
             "claim": "ref:session-host-sizing#multisession-vcpu-range",
             "observation": "obs:sizing-floor-not-measured",
+            "verdict": "extends"
+          },
+          {
+            "claim": "gap:workload-benchmark",
+            "verdict": "extends"
+          },
+          {
+            "claim": "gap:baseline-profile",
             "verdict": "extends"
           }
         ]
@@ -112,32 +130,32 @@
     },
     {
       "schema": "avd-benchmark-result/v1",
-      "id": "bm-20261028-multisession-density-d8sv5",
-      "date": "2026-10-28",
-      "source": "prior",
+      "id": "bm-20261110-multisession-density-d8sv5",
+      "date": "2026-11-10",
+      "source": "lab",
       "tier": "synthetic",
       "profile": {
         "id": "multisession-density",
         "version": "1.0.0",
         "workloadClass": "medium",
         "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-        "benchmarkCommit": "0123456789abcdef0123456789abcdef01234567"
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
       },
       "environment": {
         "vmSku": "Standard_D8s_v5",
         "vcpu": 8,
         "memoryGiB": 32,
-        "osDiskType": "Ephemeral",
-        "ephemeralOsDisk": true,
+        "osDiskType": "Premium_LRS",
+        "ephemeralOsDisk": false,
         "encryptionAtHost": true,
         "trustedLaunch": true,
         "osImage": "win11-24h2-avd-m365",
         "wdotProfile": "none",
-        "defenderCachePresealed": false,
+        "defenderCacheMaintained": false,
         "fslogixExclusions": "partial",
         "joinType": "entra-joined",
         "intuneEnrolled": true,
-        "profileStorageSku": "Premium_LRS",
+        "profileStorageSku": "Premium_ZRS",
         "profileAuth": "entra-kerberos",
         "smbChannelEncryption": "AES-128-GCM+AES-256-GCM",
         "networkEgress": "nat-gateway",
@@ -147,11 +165,12 @@
       },
       "metrics": {
         "sessionsPerVcpuTested": 4.0,
-        "cpuPct": { "p50": 62.4, "p90": 79.5, "p95": 84.2, "max": 92.0 },
-        "pqlPerCore": { "p50": 0.6, "p90": 1.3, "p95": 1.8 },
-        "availableMemoryMiB": { "p50": 3120, "p10": 1680, "min": 1420 },
-        "memoryPerSessionMiB": { "p50": 1520, "p90": 1780, "p95": 1860 },
-        "inputDelayMs": { "p50": 44, "p90": 92, "p95": 118, "p99": 154 }
+        "maxPassingSessionsPerVcpu": 3.0,
+        "cpuPct": { "min": 41.0, "p10": 49.2, "p50": 64.8, "p90": 79.4, "p95": 83.2, "p99": 88.6, "max": 91.4 },
+        "pqlPerCore": { "min": 0.1, "p10": 0.3, "p50": 0.7, "p90": 1.6, "p95": 1.9, "p99": 2.4, "max": 2.8 },
+        "availableMemoryMiB": { "min": 1480, "p10": 1920, "p50": 3120, "p90": 5420, "p95": 6180, "p99": 6840, "max": 7240 },
+        "memoryPerSessionMiB": { "min": 1080, "p10": 1190, "p50": 1390, "p90": 1680, "p95": 1760, "p99": 1890, "max": 1960 },
+        "inputDelayMs": { "min": 18, "p10": 24, "p50": 38, "p90": 88, "p95": 114, "p99": 162, "max": 188 }
       },
       "verdict": {
         "experienceGate": "warn",
@@ -159,11 +178,15 @@
           {
             "claim": "ref:session-host-sizing#multisession-users-per-vcpu",
             "observation": "obs:users-per-vcpu-adopted",
-            "verdict": "prior"
+            "verdict": "extends"
           },
           {
             "claim": "ref:session-host-sizing#multisession-vcpu-range",
             "observation": "obs:sizing-floor-not-measured",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "gap:workload-benchmark",
             "verdict": "extends"
           }
         ]
@@ -171,16 +194,15 @@
     },
     {
       "schema": "avd-benchmark-result/v1",
-      "id": "bm-20261028-storage-fslogix-io-e4sv5",
-      "date": "2026-10-28",
-      "source": "prior",
+      "id": "bm-20261110-storage-fslogix-io-e4sv5",
+      "date": "2026-11-10",
+      "source": "sandbox",
       "tier": "synthetic",
       "profile": {
         "id": "storage-fslogix-io",
         "version": "1.0.0",
-        "workloadClass": "n/a",
         "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-        "benchmarkCommit": "0123456789abcdef0123456789abcdef01234567"
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
       },
       "environment": {
         "vmSku": "Standard_E4s_v5",
@@ -192,7 +214,7 @@
         "trustedLaunch": true,
         "osImage": "win11-24h2-avd-m365",
         "wdotProfile": "avd-ops-reviewed-v1",
-        "defenderCachePresealed": true,
+        "defenderCacheMaintained": true,
         "fslogixExclusions": "full",
         "joinType": "entra-joined",
         "intuneEnrolled": true,
@@ -205,12 +227,11 @@
         "windowHours": 2
       },
       "metrics": {
-        "readIopsP50": 3180,
-        "readIopsP95": 3469,
-        "writeIopsP95": 2159,
-        "readLatencyMsP95": 3.41,
-        "writeLatencyMsP99": 5.36,
-        "vhdxAttachMsP95": 2204
+        "readIops": { "min": 1890, "p10": 2120, "p50": 2480, "p90": 2980, "p95": 3180, "p99": 3410, "max": 3560 },
+        "writeIops": { "min": 840, "p10": 980, "p50": 1240, "p90": 1520, "p95": 1640, "p99": 1790, "max": 1880 },
+        "readLatencyMs": { "min": 1.1, "p10": 1.4, "p50": 2.1, "p90": 3.2, "p95": 3.8, "p99": 5.4, "max": 6.8 },
+        "writeLatencyMs": { "min": 1.5, "p10": 1.9, "p50": 2.8, "p90": 4.5, "p95": 5.4, "p99": 7.6, "max": 9.2 },
+        "vhdxAttachMs": { "min": 940, "p10": 1080, "p50": 1380, "p90": 1920, "p95": 2180, "p99": 2640, "max": 2890 }
       },
       "verdict": {
         "experienceGate": "pass",
@@ -218,23 +239,36 @@
           {
             "claim": "ref:avd-deploy-host-pool#premium-ssd-os-disk",
             "observation": "obs:premium-ssd-os-disk-default",
-            "verdict": "prior"
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:disk-encryption-options#encryption-at-host",
+            "observation": "obs:encryption-at-host-by-default",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:mcsb-avd-baseline#DP-3",
+            "observation": "obs:smb-channel-aes128-gcm-needed",
+            "verdict": "extends"
+          },
+          {
+            "claim": "ref:review-checklists-avd#H03.05",
+            "verdict": "agrees"
           }
         ]
       }
     },
     {
       "schema": "avd-benchmark-result/v1",
-      "id": "bm-20261028-storage-fslogix-io-d8sv5",
-      "date": "2026-10-28",
-      "source": "prior",
+      "id": "bm-20261110-storage-fslogix-io-d8sv5",
+      "date": "2026-11-10",
+      "source": "lab",
       "tier": "synthetic",
       "profile": {
         "id": "storage-fslogix-io",
         "version": "1.0.0",
-        "workloadClass": "n/a",
         "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-        "benchmarkCommit": "0123456789abcdef0123456789abcdef01234567"
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
       },
       "environment": {
         "vmSku": "Standard_D8s_v5",
@@ -246,7 +280,7 @@
         "trustedLaunch": true,
         "osImage": "win11-24h2-avd-m365",
         "wdotProfile": "avd-ops-reviewed-v1",
-        "defenderCachePresealed": true,
+        "defenderCacheMaintained": true,
         "fslogixExclusions": "full",
         "joinType": "entra-joined",
         "intuneEnrolled": true,
@@ -255,16 +289,15 @@
         "smbChannelEncryption": "AES-128-GCM+AES-256-GCM",
         "networkEgress": "nat-gateway",
         "sampleHostsBand": "1-2",
-        "sampleSessionsBand": "10-25",
+        "sampleSessionsBand": "26-100",
         "windowHours": 2
       },
       "metrics": {
-        "readIopsP50": 4410,
-        "readIopsP95": 4811,
-        "writeIopsP95": 3029,
-        "readLatencyMsP95": 1.74,
-        "writeLatencyMsP99": 2.58,
-        "vhdxAttachMsP95": 1890
+        "readIops": { "min": 2410, "p10": 2680, "p50": 3120, "p90": 3740, "p95": 3980, "p99": 4290, "max": 4480 },
+        "writeIops": { "min": 1120, "p10": 1290, "p50": 1580, "p90": 1910, "p95": 2060, "p99": 2280, "max": 2410 },
+        "readLatencyMs": { "min": 0.8, "p10": 1.1, "p50": 1.6, "p90": 2.4, "p95": 2.9, "p99": 4.1, "max": 5.2 },
+        "writeLatencyMs": { "min": 1.1, "p10": 1.4, "p50": 2.1, "p90": 3.4, "p95": 4.1, "p99": 5.9, "max": 7.1 },
+        "vhdxAttachMs": { "min": 820, "p10": 940, "p50": 1190, "p90": 1680, "p95": 1890, "p99": 2310, "max": 2540 }
       },
       "verdict": {
         "experienceGate": "pass",
@@ -272,23 +305,31 @@
           {
             "claim": "ref:avd-deploy-host-pool#premium-ssd-os-disk",
             "observation": "obs:premium-ssd-os-disk-default",
-            "verdict": "prior"
+            "verdict": "extends"
+          },
+          {
+            "claim": "ref:disk-encryption-options#encryption-at-host",
+            "observation": "obs:encryption-at-host-by-default",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:review-checklists-avd#H03.05",
+            "verdict": "agrees"
           }
         ]
       }
     },
     {
       "schema": "avd-benchmark-result/v1",
-      "id": "bm-20261028-host-logon-storm-e4sv5",
-      "date": "2026-10-28",
-      "source": "prior",
+      "id": "bm-20261110-host-logon-storm-e4sv5",
+      "date": "2026-11-10",
+      "source": "sandbox",
       "tier": "synthetic",
       "profile": {
         "id": "host-logon-storm",
         "version": "1.0.0",
-        "workloadClass": "medium",
         "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-        "benchmarkCommit": "0123456789abcdef0123456789abcdef01234567"
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
       },
       "environment": {
         "vmSku": "Standard_E4s_v5",
@@ -300,7 +341,7 @@
         "trustedLaunch": true,
         "osImage": "win11-24h2-avd-m365",
         "wdotProfile": "avd-ops-reviewed-v1",
-        "defenderCachePresealed": true,
+        "defenderCacheMaintained": true,
         "fslogixExclusions": "full",
         "joinType": "entra-joined",
         "intuneEnrolled": true,
@@ -310,38 +351,171 @@
         "networkEgress": "nat-gateway",
         "sampleHostsBand": "1-2",
         "sampleSessionsBand": "10-25",
-        "windowHours": 2
+        "windowHours": 1
       },
       "metrics": {
-        "timeToConnectMsP50": 18100,
-        "timeToConnectMsP95": 22780,
-        "profileLoadMsP95": 5310,
-        "peakCpuPct": 82.4,
-        "availMemMiBMin": 6144
+        "timeToConnectMs": { "min": 11200, "p10": 12400, "p50": 14800, "p90": 19600, "p95": 22400, "p99": 26800, "max": 28400 },
+        "profileLoadMs": { "min": 3100, "p10": 3500, "p50": 4200, "p90": 6100, "p95": 6900, "p99": 8400, "max": 9100 },
+        "vhdxAttachMs": { "min": 980, "p10": 1120, "p50": 1420, "p90": 1980, "p95": 2240, "p99": 2720, "max": 2950 },
+        "cpuPct": { "min": 38.0, "p10": 46.5, "p50": 64.2, "p90": 76.8, "p95": 79.4, "p99": 82.8, "max": 84.5 },
+        "availableMemoryMiB": { "min": 9420, "p10": 10180, "p50": 12640, "p90": 16820, "p95": 18240, "p99": 19600, "max": 20480 }
       },
       "verdict": {
         "experienceGate": "pass",
         "claims": [
           {
+            "claim": "gap:logon-target",
+            "verdict": "extends"
+          },
+          {
             "claim": "ref:defender-av-vdi#cache-maintenance-before-seal",
             "observation": "obs:defender-cache-maintenance-not-in-image",
-            "verdict": "prior"
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:fslogix-prerequisites#exclusion-scope",
+            "observation": "obs:fslogix-exclusions-partial",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:session-host-sizing#logon-storm-headroom",
+            "verdict": "agrees"
           }
         ]
       }
     },
     {
       "schema": "avd-benchmark-result/v1",
-      "id": "bm-20261028-control-plane-autoscale-d8sv5",
-      "date": "2026-10-28",
-      "source": "prior",
+      "id": "bm-20261110-host-logon-storm-d8sv5",
+      "date": "2026-11-10",
+      "source": "lab",
+      "tier": "synthetic",
+      "profile": {
+        "id": "host-logon-storm",
+        "version": "1.0.0",
+        "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
+      },
+      "environment": {
+        "vmSku": "Standard_D8s_v5",
+        "vcpu": 8,
+        "memoryGiB": 32,
+        "osDiskType": "Premium_LRS",
+        "ephemeralOsDisk": false,
+        "encryptionAtHost": true,
+        "trustedLaunch": true,
+        "osImage": "win11-24h2-avd-m365",
+        "wdotProfile": "wdot-default",
+        "defenderCacheMaintained": false,
+        "fslogixExclusions": "partial",
+        "joinType": "entra-joined",
+        "intuneEnrolled": true,
+        "profileStorageSku": "Premium_ZRS",
+        "profileAuth": "entra-kerberos",
+        "smbChannelEncryption": "AES-128-GCM+AES-256-GCM",
+        "networkEgress": "nat-gateway",
+        "sampleHostsBand": "1-2",
+        "sampleSessionsBand": "26-100",
+        "windowHours": 1
+      },
+      "metrics": {
+        "timeToConnectMs": { "min": 13600, "p10": 15200, "p50": 19400, "p90": 27200, "p95": 31800, "p99": 38900, "max": 41600 },
+        "profileLoadMs": { "min": 4600, "p10": 5300, "p50": 6800, "p90": 9800, "p95": 11400, "p99": 14200, "max": 15600 },
+        "vhdxAttachMs": { "min": 1420, "p10": 1680, "p50": 2340, "p90": 3480, "p95": 4120, "p99": 5180, "max": 5640 },
+        "cpuPct": { "min": 52.0, "p10": 64.0, "p50": 78.5, "p90": 89.2, "p95": 91.6, "p99": 93.8, "max": 94.2 },
+        "availableMemoryMiB": { "min": 5120, "p10": 5840, "p50": 7920, "p90": 11400, "p95": 12800, "p99": 14200, "max": 15360 }
+      },
+      "verdict": {
+        "experienceGate": "warn",
+        "claims": [
+          {
+            "claim": "ref:defender-av-vdi#cache-maintenance-before-seal",
+            "observation": "obs:defender-cache-maintenance-not-in-image",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:fslogix-prerequisites#exclusion-scope",
+            "observation": "obs:fslogix-exclusions-partial",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:session-host-sizing#logon-storm-headroom",
+            "verdict": "agrees"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "avd-benchmark-result/v1",
+      "id": "bm-20261110-control-plane-autoscale-e4sv5",
+      "date": "2026-11-10",
+      "source": "sandbox",
       "tier": "synthetic",
       "profile": {
         "id": "control-plane-autoscale",
         "version": "1.0.0",
-        "workloadClass": "n/a",
         "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-        "benchmarkCommit": "0123456789abcdef0123456789abcdef01234567"
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
+      },
+      "environment": {
+        "vmSku": "Standard_E4s_v5",
+        "vcpu": 4,
+        "memoryGiB": 32,
+        "osDiskType": "Premium_LRS",
+        "ephemeralOsDisk": false,
+        "encryptionAtHost": true,
+        "trustedLaunch": true,
+        "osImage": "win11-24h2-avd-m365",
+        "wdotProfile": "avd-ops-reviewed-v1",
+        "defenderCacheMaintained": true,
+        "fslogixExclusions": "full",
+        "joinType": "entra-joined",
+        "intuneEnrolled": true,
+        "profileStorageSku": "Premium_ZRS",
+        "profileAuth": "entra-kerberos",
+        "smbChannelEncryption": "AES-128-GCM+AES-256-GCM",
+        "networkEgress": "nat-gateway",
+        "sampleHostsBand": "1-2",
+        "sampleSessionsBand": "1-2",
+        "windowHours": 4
+      },
+      "metrics": {
+        "coldBootToAvailableSec": { "min": 162, "p10": 170, "p50": 184, "p90": 212, "p95": 228, "p99": 246, "max": 254 },
+        "startOnConnectWaitSec": { "min": 78, "p10": 84, "p50": 96, "p90": 118, "p95": 128, "p99": 142, "max": 149 },
+        "drainToDeallocateSec": { "min": 118, "p10": 126, "p50": 142, "p90": 172, "p95": 185, "p99": 198, "max": 204 }
+      },
+      "verdict": {
+        "experienceGate": "pass",
+        "claims": [
+          {
+            "claim": "ref:autoscale-plan#role-at-subscription",
+            "observation": "obs:power-role-at-resource-group-scope",
+            "verdict": "disagrees"
+          },
+          {
+            "claim": "ref:avd-autoscale#scales-to-save-cost",
+            "observation": "obs:scaling-and-start-on-connect-by-default",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:cost-management-data#data-latency",
+            "observation": "obs:run-cost-settles-late",
+            "verdict": "agrees"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "avd-benchmark-result/v1",
+      "id": "bm-20261110-control-plane-autoscale-d8sv5",
+      "date": "2026-11-10",
+      "source": "lab",
+      "tier": "synthetic",
+      "profile": {
+        "id": "control-plane-autoscale",
+        "version": "1.0.0",
+        "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
       },
       "environment": {
         "vmSku": "Standard_D8s_v5",
@@ -353,7 +527,7 @@
         "trustedLaunch": true,
         "osImage": "win11-24h2-avd-m365",
         "wdotProfile": "avd-ops-reviewed-v1",
-        "defenderCachePresealed": true,
+        "defenderCacheMaintained": true,
         "fslogixExclusions": "full",
         "joinType": "entra-joined",
         "intuneEnrolled": true,
@@ -363,12 +537,12 @@
         "networkEgress": "nat-gateway",
         "sampleHostsBand": "3-9",
         "sampleSessionsBand": "10-25",
-        "windowHours": 2
+        "windowHours": 4
       },
       "metrics": {
-        "coldBootToAvailableSecP95": 112,
-        "startOnConnectWaitSecP95": 134,
-        "drainToDeallocateSecP95": 362
+        "coldBootToAvailableSec": { "min": 134, "p10": 140, "p50": 152, "p90": 176, "p95": 188, "p99": 204, "max": 212 },
+        "startOnConnectWaitSec": { "min": 64, "p10": 70, "p50": 82, "p90": 100, "p95": 108, "p99": 120, "max": 126 },
+        "drainToDeallocateSec": { "min": 108, "p10": 116, "p50": 134, "p90": 158, "p95": 168, "p99": 182, "max": 190 }
       },
       "verdict": {
         "experienceGate": "pass",
@@ -376,23 +550,27 @@
           {
             "claim": "ref:autoscale-plan#role-at-subscription",
             "observation": "obs:power-role-at-resource-group-scope",
-            "verdict": "prior"
+            "verdict": "disagrees"
+          },
+          {
+            "claim": "ref:avd-autoscale#scales-to-save-cost",
+            "observation": "obs:scaling-and-start-on-connect-by-default",
+            "verdict": "agrees"
           }
         ]
       }
     },
     {
       "schema": "avd-benchmark-result/v1",
-      "id": "bm-20261028-bcdr-profile-recovery-e4sv5",
-      "date": "2026-10-28",
-      "source": "prior",
+      "id": "bm-20261110-bcdr-profile-recovery-e4sv5",
+      "date": "2026-11-10",
+      "source": "sandbox",
       "tier": "synthetic",
       "profile": {
         "id": "bcdr-profile-recovery",
         "version": "1.0.0",
-        "workloadClass": "n/a",
         "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-        "benchmarkCommit": "0123456789abcdef0123456789abcdef01234567"
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
       },
       "environment": {
         "vmSku": "Standard_E4s_v5",
@@ -404,7 +582,7 @@
         "trustedLaunch": true,
         "osImage": "win11-24h2-avd-m365",
         "wdotProfile": "avd-ops-reviewed-v1",
-        "defenderCachePresealed": true,
+        "defenderCacheMaintained": true,
         "fslogixExclusions": "full",
         "joinType": "entra-joined",
         "intuneEnrolled": true,
@@ -413,12 +591,12 @@
         "smbChannelEncryption": "AES-128-GCM+AES-256-GCM",
         "networkEgress": "nat-gateway",
         "sampleHostsBand": "1-2",
-        "sampleSessionsBand": "10-25",
-        "windowHours": 2
+        "sampleSessionsBand": "1-2",
+        "windowHours": 1
       },
       "metrics": {
-        "measuredRtoMinutes": 38,
-        "measuredRpoMinutes": 60,
+        "measuredRtoMinutes": 8.8,
+        "measuredRpoMinutes": 15.0,
         "backupJobSuccess": true
       },
       "verdict": {
@@ -427,7 +605,82 @@
           {
             "claim": "ref:avd-multiregion-bcdr#rto-rpo-by-model",
             "observation": "obs:recovery-tiers-not-yet-tested",
-            "verdict": "prior"
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:files-backup-support#key-access-needed",
+            "observation": "obs:files-backup-key-access-off",
+            "verdict": "extends"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "avd-benchmark-result/v1",
+      "id": "bm-20261110-insights-observational-d8sv5",
+      "date": "2026-11-10",
+      "source": "sandbox",
+      "tier": "observational",
+      "profile": {
+        "id": "insights-observational",
+        "version": "1.0.0",
+        "workloadClass": "medium",
+        "assessCommit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
+        "benchmarkCommit": "52c93d5c516c36536796fc9388b694c5fcad71ed"
+      },
+      "environment": {
+        "vmSku": "Standard_D8s_v5",
+        "vcpu": 8,
+        "memoryGiB": 32,
+        "osDiskType": "Premium_LRS",
+        "ephemeralOsDisk": false,
+        "encryptionAtHost": true,
+        "trustedLaunch": true,
+        "osImage": "win11-24h2-avd-m365",
+        "wdotProfile": "avd-ops-reviewed-v1",
+        "defenderCacheMaintained": true,
+        "fslogixExclusions": "full",
+        "joinType": "entra-joined",
+        "intuneEnrolled": true,
+        "profileStorageSku": "Premium_ZRS",
+        "profileAuth": "entra-kerberos",
+        "smbChannelEncryption": "AES-128-GCM+AES-256-GCM",
+        "networkEgress": "nat-gateway",
+        "sampleHostsBand": "3-9",
+        "sampleSessionsBand": "26-100",
+        "windowHours": 168
+      },
+      "metrics": {
+        "rttMs": { "min": 18, "p10": 22, "p50": 31, "p90": 48, "p95": 56, "p99": 74, "max": 89 },
+        "inputDelayMs": { "min": 14, "p10": 18, "p50": 26, "p90": 54, "p95": 68, "p99": 96, "max": 118 },
+        "timeToConnectMs": { "min": 10800, "p10": 12100, "p50": 15200, "p90": 20400, "p95": 23100, "p99": 27900, "max": 30400 },
+        "profileLoadMs": { "min": 2900, "p10": 3300, "p50": 4100, "p90": 5900, "p95": 6700, "p99": 8100, "max": 8800 },
+        "cpuPct": { "min": 18.4, "p10": 26.2, "p50": 48.6, "p90": 68.4, "p95": 74.2, "p99": 81.0, "max": 84.6 },
+        "availableMemoryMiB": { "min": 6840, "p10": 7920, "p50": 11480, "p90": 16200, "p95": 18400, "p99": 21200, "max": 22800 },
+        "connectionFailureRatePct": 0.6,
+        "shortpathUdpSharePct": 0.0,
+        "turnRelaySharePct": 94.2
+      },
+      "verdict": {
+        "experienceGate": "pass",
+        "claims": [
+          {
+            "claim": "gap:insights-facts",
+            "verdict": "extends"
+          },
+          {
+            "claim": "ref:rdp-shortpath#symmetric-nat-means-turn",
+            "observation": "obs:symmetric-nat-egress-means-turn",
+            "verdict": "agrees"
+          },
+          {
+            "claim": "ref:configure-rdp-shortpath#verify-transport",
+            "observation": "obs:transport-column-names-disagree",
+            "verdict": "extends"
+          },
+          {
+            "claim": "ref:advisor-vm-rightsize#lookback",
+            "verdict": "agrees"
           }
         ]
       }

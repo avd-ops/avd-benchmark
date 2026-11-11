@@ -144,7 +144,7 @@ test('benchmark-core.js enforces SandboxBatch approval gate and validates all se
 
   const corpus = JSON.parse(read('site/portal/corpus.json'));
   assert.equal(corpus.schema, 'avd-benchmark-corpus/v1');
-  assert.equal(corpus.profiles.length, 5);
+  assert.equal(corpus.profiles.length, 6);
   assert.ok(corpus.records.length >= 6);
 
   for (const rec of corpus.records) {
