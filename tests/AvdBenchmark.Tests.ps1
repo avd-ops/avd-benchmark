@@ -167,3 +167,79 @@ Describe 'AvdBenchmark.psm1 - Fail-Closed Leak & Redaction Guard' {
         }
     }
 }
+
+Describe 'ConvertFrom-EucScore (Experimental BYO Adapter)' {
+    BeforeAll {
+        $script:EucDir = Join-Path $TestDrive 'euc-synth'
+        New-Item -ItemType Directory -Path $script:EucDir -Force | Out-Null
+        $script:SynthIni = Join-Path $script:EucDir 'Telemetry.ini'
+        @(
+            '# Synthetic Telemetry.ini fixture for unit tests',
+            '\Processor(_Total)\% Processor Time',
+            '\System\Processor Queue Length',
+            '\Memory\Available MBytes',
+            '\User Input Delay per Session(Max)\Max Input Delay'
+        ) | Set-Content -LiteralPath $script:SynthIni -Encoding ascii
+
+        $script:SynthCsv = Join-Path $script:EucDir 'synthetic-telemetry.csv'
+        @(
+            '"\Processor(_Total)\% Processor Time","\System\Processor Queue Length","\Memory\Available MBytes","\User Input Delay per Session(Max)\Max Input Delay"',
+            '42.0,2,18400,28',
+            '48.0,4,17900,35',
+            '55.0,6,17200,44'
+        ) | Set-Content -LiteralPath $script:SynthCsv -Encoding ascii
+    }
+
+    It 'Requires -Experimental switch' {
+        { ConvertFrom-EucScore -EucScoreCsvPath $script:SynthCsv } | Should -Throw '*Experimental*'
+    }
+
+    It 'Normalizes synthetic telemetry CSV + Telemetry.ini into a valid C25 v1 result with extensions.generator' {
+        $res = ConvertFrom-EucScore -EucScoreCsvPath $script:SynthCsv -Experimental -Persona 'knowledge-worker' -VmSku 'Standard_E4s_v5'
+        $res['schema'] | Should -Be 'avd-benchmark-result/v1'
+        $res['source'] | Should -Be 'lab'
+        $res['extensions']['generator']['kind'] | Should -Be 'euc-score-byo'
+        $res['extensions']['generator']['persona'] | Should -Be 'knowledge-worker'
+        $res['extensions']['generator']['licenseSelfDeclared'] | Should -Be 'community-public-results'
+        $res['extensions']['generator']['exportSha256'] | Should -Match '^[0-9a-f]{64}$'
+        $res['verdict']['experienceGate'] | Should -Be 'pass'
+        $res['verdict']['claims'][0]['verdict'] | Should -Be 'extends'
+        (Test-AvdBenchmarkResult -InputObject $res).IsValid | Should -BeTrue
+    }
+
+    It 'Fails closed on directories, .ref files, inventory CSVs, and unrenamed Telemetry_<Computer>_<User> filenames without echoing paths' {
+        { ConvertFrom-EucScore -EucScoreCsvPath $script:EucDir -Experimental } | Should -Throw '*not a directory*'
+
+        $refFile = Join-Path $script:EucDir 'run.ref'
+        Set-Content -LiteralPath $refFile -Value 'app-launch' -Encoding ascii
+        { ConvertFrom-EucScore -EucScoreCsvPath $refFile -Experimental } | Should -Throw '*.csv*'
+
+        $piiCsv = Join-Path $script:EucDir 'Telemetry_AVDHOST01_jdoe_2026-11-16-12-00-00.csv'
+        Copy-Item -LiteralPath $script:SynthCsv -Destination $piiCsv -Force
+        $errMsg = ''
+        try {
+            ConvertFrom-EucScore -EucScoreCsvPath $piiCsv -Experimental
+        } catch {
+            $errMsg = $_.Exception.Message
+        }
+        $errMsg | Should -Match 'unrenamed'
+        $errMsg | Should -Not -Match 'AVDHOST01'
+        $errMsg | Should -Not -Match 'jdoe'
+
+        $invCsv = Join-Path $script:EucDir 'User Sessions.csv'
+        Copy-Item -LiteralPath $script:SynthCsv -Destination $invCsv -Force
+        { ConvertFrom-EucScore -EucScoreCsvPath $invCsv -Experimental } | Should -Throw '*inventory*'
+    }
+
+    It 'Refuses unknown PerfMon counters in Telemetry.ini and enforces estate consent + session band >= 10-25' {
+        $badDir = Join-Path $TestDrive 'euc-bad-ini'
+        New-Item -ItemType Directory -Path $badDir -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $badDir 'Telemetry.ini') -Value '\Process(SecretApp)\Private Bytes' -Encoding ascii
+        $badCsv = Join-Path $badDir 'telemetry.csv'
+        Copy-Item -LiteralPath $script:SynthCsv -Destination $badCsv -Force
+        { ConvertFrom-EucScore -EucScoreCsvPath $badCsv -Experimental } | Should -Throw '*unrecognized*'
+
+        { ConvertFrom-EucScore -EucScoreCsvPath $script:SynthCsv -Experimental -Source 'estate' } | Should -Throw '*Consent*'
+        { ConvertFrom-EucScore -EucScoreCsvPath $script:SynthCsv -Experimental -Source 'estate' -Consent -SampleSessionsBand '1-2' } | Should -Throw '*10-25*'
+    }
+}

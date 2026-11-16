@@ -169,4 +169,20 @@ test('benchmark-core.js enforces SandboxBatch approval gate and validates all se
   const dirtyCheck = core.validateC25(dirty);
   assert.equal(dirtyCheck.valid, false);
   assert.match(dirtyCheck.errors.join(' '), /GUID/);
+
+  const eucRec = JSON.parse(JSON.stringify(corpus.records[0]));
+  eucRec.extensions = {
+    generator: {
+      kind: 'euc-score-byo',
+      version: '1.0.0',
+      persona: 'knowledge-worker',
+      licenseSelfDeclared: 'community-public-results',
+      exportSha256: 'a'.repeat(64)
+    }
+  };
+  assert.equal(core.validateC25(eucRec).valid, true);
+  assert.equal(core.filterCorpus([corpus.records[0], eucRec], {}).length, 1);
+  assert.equal(core.filterCorpus([corpus.records[0], eucRec], { includeExternal: true }).length, 2);
+  assert.equal(core.compareRecords(eucRec, null)[0].generatorKind, 'euc-score-byo');
+  assert.equal(core.compareRecords(eucRec, null)[0].generatorPersona, 'knowledge-worker');
 });

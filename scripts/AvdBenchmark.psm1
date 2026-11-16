@@ -422,6 +422,36 @@ function Test-AvdBenchmarkResult {
         }
     }
 
+    # 7. Closed sub-schema validation for extensions.generator (decision 0021)
+    if ($null -ne $doc['extensions'] -and $doc['extensions'] -is [System.Collections.IDictionary] -and $doc['extensions'].ContainsKey('generator')) {
+        $gen = $doc['extensions']['generator']
+        if ($null -eq $gen -or $gen -isnot [System.Collections.IDictionary]) {
+            $errors.Add('extensions.generator must be an object.')
+        } else {
+            $allowedGenKeys = @('kind', 'version', 'persona', 'licenseSelfDeclared', 'exportSha256')
+            foreach ($gk in $gen.Keys) {
+                if ($allowedGenKeys -notcontains [string]$gk) {
+                    $errors.Add("extensions.generator.$gk is not an allowed property.")
+                }
+            }
+            if (@('native', 'euc-score-byo') -notcontains [string]$gen['kind']) {
+                $errors.Add("extensions.generator.kind '$($gen['kind'])' must be native or euc-score-byo.")
+            }
+            if ([string]$gen['version'] -notmatch '^(?:[0-9]+\.[0-9]+(?:\.[0-9]+)?|unknown)$') {
+                $errors.Add('extensions.generator.version must be semver or unknown.')
+            }
+            if (@('author', 'knowledge-worker', 'power-user', 'media-user', 'other') -notcontains [string]$gen['persona']) {
+                $errors.Add("extensions.generator.persona '$($gen['persona'])' is not in the closed enum.")
+            }
+            if ([string]$gen['licenseSelfDeclared'] -ne 'community-public-results') {
+                $errors.Add("extensions.generator.licenseSelfDeclared must be 'community-public-results'.")
+            }
+            if ([string]$gen['exportSha256'] -notmatch '^[0-9a-f]{64}$') {
+                $errors.Add('extensions.generator.exportSha256 must be a 64-char lowercase hex SHA-256.')
+            }
+        }
+    }
+
     return [PSCustomObject]@{
         IsValid = ($errors.Count -eq 0)
         Errors  = $errors.ToArray()
@@ -773,11 +803,264 @@ function Invoke-AvdBenchmarkProfile {
     return $result
 }
 
+function ConvertFrom-EucScore {
+    <#
+    .SYNOPSIS
+        Experimental BYO adapter that normalizes an operator-supplied EUC Score host-side
+        PerfMon telemetry CSV + Telemetry.ini into a redacted, validated C25 JSON hashtable.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$EucScoreCsvPath,
+
+        [Parameter()]
+        [switch]$Experimental,
+
+        [Parameter()]
+        [ValidateSet('community-public-results')]
+        [string]$LicenseSelfDeclared = 'community-public-results',
+
+        [Parameter()]
+        [ValidateSet('author', 'knowledge-worker', 'power-user', 'media-user', 'other')]
+        [string]$Persona = 'knowledge-worker',
+
+        [Parameter()]
+        [ValidateSet('lab', 'sandbox', 'estate')]
+        [string]$Source = 'lab',
+
+        [Parameter()]
+        [switch]$Consent,
+
+        [Parameter()]
+        [string]$VmSku = 'Standard_E4s_v5',
+
+        [Parameter()]
+        [ValidateSet('Premium_LRS', 'Premium_ZRS', 'PremiumV2_LRS', 'StandardSSD_LRS', 'StandardSSD_ZRS', 'Standard_LRS', 'Ephemeral')]
+        [string]$OsDiskType = 'Premium_LRS',
+
+        [Parameter()]
+        [ValidateSet('1-2', '3-9', '10-25', '26-100', '100+')]
+        [string]$SampleHostsBand = '1-2',
+
+        [Parameter()]
+        [ValidateSet('1-2', '3-9', '10-25', '26-100', '100+')]
+        [string]$SampleSessionsBand = '1-2',
+
+        [Parameter()]
+        [ValidateRange(0.25, 8784)]
+        [double]$WindowHours = 1,
+
+        [Parameter()]
+        [string]$GeneratorVersion = 'unknown'
+    )
+
+    if (-not $Experimental) {
+        throw 'ConvertFrom-EucScore requires -Experimental until validated against a live Community lab export.'
+    }
+    if (-not $script:AllowedVmSkus.ContainsKey($VmSku)) {
+        throw 'VmSku is not in the allowed public Azure VM SKU list.'
+    }
+    if ($Source -eq 'estate') {
+        if (-not $Consent) {
+            throw 'Source estate requires -Consent.'
+        }
+        if (@('10-25', '26-100', '100+') -notcontains $SampleSessionsBand) {
+            throw 'Source estate requires SampleSessionsBand of at least 10-25 for per-session distributions.'
+        }
+    }
+    if ($GeneratorVersion -notmatch '^(?:[0-9]+\.[0-9]+(?:\.[0-9]+)?|unknown)$') {
+        throw 'GeneratorVersion must be semver (X.Y or X.Y.Z) or unknown.'
+    }
+
+    # Strict single-file input checks; zero-reflection errors never echo paths or filenames
+    if (-not (Test-Path -LiteralPath $EucScoreCsvPath)) {
+        throw 'EucScoreCsvPath does not exist.'
+    }
+    if (Test-Path -LiteralPath $EucScoreCsvPath -PathType Container) {
+        throw 'EucScoreCsvPath must be a single telemetry CSV file, not a directory.'
+    }
+    $leaf = Split-Path -Leaf $EucScoreCsvPath
+    if ([System.IO.Path]::GetExtension($leaf).ToLowerInvariant() -ne '.csv') {
+        throw 'EucScoreCsvPath must have a .csv extension (.txt and .ref files are refused).'
+    }
+    if ($leaf -match '(?i)^Telemetry_[^_]+_[^_]+_') {
+        throw 'Refusing unrenamed session-scoped Telemetry_<Computername>_<Username> CSV filename.'
+    }
+    if ($leaf -match '(?i)(Driver|Service|User Sessions|Proc Info|Session Proc|Proc Times|Task List|Win Info|Win Events|SysInfo)') {
+        throw 'Refusing EUC Score inventory or system-info file; only host-side PerfMon telemetry CSVs are accepted.'
+    }
+
+    $parentDir = Split-Path -Parent $EucScoreCsvPath
+    $iniPath = Join-Path $parentDir 'Telemetry.ini'
+    if (-not (Test-Path -LiteralPath $iniPath -PathType Leaf)) {
+        throw 'Adjacent Telemetry.ini is required alongside the telemetry CSV.'
+    }
+
+    # Pinned PerfMon counter map (units come from counter path, never header guessing)
+    $pinnedCounters = @{
+        '\Processor(_Total)\% Processor Time'                = 'cpuPct'
+        '\System\Processor Queue Length'                     = 'pqlPerCore'
+        '\Memory\Available MBytes'                           = 'availableMemoryMiB'
+        '\User Input Delay per Session(Max)\Max Input Delay' = 'inputDelayMs'
+    }
+
+    $iniCounters = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in (Get-Content -LiteralPath $iniPath)) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#') -or $trimmed.StartsWith(';') -or $trimmed.StartsWith('[')) {
+            continue
+        }
+        $counterPath = ($trimmed -split '=', 2)[0].Trim()
+        if (-not $pinnedCounters.ContainsKey($counterPath)) {
+            throw 'Telemetry.ini contains an unrecognized or unpinned PerfMon counter path.'
+        }
+        if (-not $iniCounters.Contains($counterPath)) {
+            $iniCounters.Add($counterPath)
+        }
+    }
+    if ($iniCounters.Count -eq 0) {
+        throw 'Telemetry.ini must declare at least one pinned PerfMon counter.'
+    }
+
+    $rows = @(Import-Csv -LiteralPath $EucScoreCsvPath)
+    if ($rows.Count -eq 0) {
+        throw 'Telemetry CSV contains no data rows.'
+    }
+
+    $skuSpec = $script:AllowedVmSkus[$VmSku]
+    $metrics = [ordered]@{}
+    foreach ($counterPath in $iniCounters) {
+        $metricKey = $pinnedCounters[$counterPath]
+        $samples = [System.Collections.Generic.List[double]]::new()
+        foreach ($row in $rows) {
+            $prop = $row.PSObject.Properties[$counterPath]
+            if ($null -eq $prop -or [string]::IsNullOrWhiteSpace([string]$prop.Value)) {
+                continue
+            }
+            $num = 0.0
+            if (-not [double]::TryParse([string]$prop.Value, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$num)) {
+                throw 'Telemetry CSV contains a non-numeric counter sample.'
+            }
+            if ($metricKey -eq 'pqlPerCore') {
+                $num = $num / [double]$skuSpec.vcpu
+            }
+            $samples.Add($num)
+        }
+        if ($samples.Count -eq 0) {
+            throw 'Telemetry CSV is missing samples for a counter declared in Telemetry.ini.'
+        }
+        $digits = if ($metricKey -eq 'pqlPerCore') { 2 } else { 1 }
+        $metrics[$metricKey] = New-AvdDistribution -Samples $samples.ToArray() -Digits $digits
+    }
+
+    $personaToClass = @{
+        'author'           = 'light'
+        'knowledge-worker' = 'medium'
+        'power-user'       = 'heavy'
+        'media-user'       = 'power'
+        'other'            = 'medium'
+    }
+    $workloadClass = $personaToClass[$Persona]
+    $roundedWindow = [Math]::Max(1, [int][Math]::Round($WindowHours))
+    $exportHash = (Get-FileHash -LiteralPath $EucScoreCsvPath -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    $pinsPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'PINS.json'
+    $assessCommit = 'c8ca035682e46c3327a10ae28bcb665dbb6abd45'
+    if (Test-Path -LiteralPath $pinsPath -PathType Leaf) {
+        $pins = Get-Content -LiteralPath $pinsPath -Raw | ConvertFrom-Json -AsHashtable
+        if ($pins['commit'] -match '^[0-9a-f]{40}$') {
+            $assessCommit = $pins['commit']
+        }
+    }
+    $benchmarkCommit = '0000000000000000000000000000000000000000'
+    try {
+        $gitSha = (& git -C (Split-Path -Parent $PSScriptRoot) rev-parse HEAD 2>$null | Out-String).Trim()
+        if ($gitSha -match '^[0-9a-f]{40}$') { $benchmarkCommit = $gitSha }
+    } catch { }
+
+    $dateStr = (Get-Date).ToString('yyyy-MM-dd')
+    $dateCompact = $dateStr.Replace('-', '')
+    $skuSlug = ($VmSku.ToLowerInvariant() -replace '[^a-z0-9]+', '')
+
+    $gate = 'warn'
+    if ($metrics.Contains('inputDelayMs') -and $roundedWindow -ge 1) {
+        $gate = if ([double]$metrics['inputDelayMs']['p95'] -le 100) { 'pass' } else { 'fail' }
+    }
+
+    $result = [ordered]@{
+        schema      = 'avd-benchmark-result/v1'
+        id          = "bm-$dateCompact-multisession-density-$skuSlug-eucscore"
+        date        = $dateStr
+        source      = $Source
+        tier        = 'synthetic'
+        extensions  = [ordered]@{
+            generator = [ordered]@{
+                kind                = 'euc-score-byo'
+                version             = $GeneratorVersion
+                persona             = $Persona
+                licenseSelfDeclared = $LicenseSelfDeclared
+                exportSha256        = $exportHash
+            }
+        }
+        profile     = [ordered]@{
+            id              = 'multisession-density'
+            version         = '1.0.0'
+            workloadClass   = $workloadClass
+            assessCommit    = $assessCommit
+            benchmarkCommit = $benchmarkCommit
+        }
+        environment = [ordered]@{
+            vmSku                   = $VmSku
+            vcpu                    = [int]$skuSpec.vcpu
+            memoryGiB               = [double]$skuSpec.memoryGiB
+            osDiskType              = $OsDiskType
+            ephemeralOsDisk         = ($OsDiskType -eq 'Ephemeral')
+            encryptionAtHost        = $true
+            trustedLaunch           = $true
+            osImage                 = 'win11-24h2-avd-m365'
+            wdotProfile             = 'avd-ops-reviewed-v1'
+            defenderCacheMaintained = $true
+            fslogixExclusions       = 'full'
+            joinType                = 'entra-joined'
+            intuneEnrolled          = $true
+            profileStorageSku       = 'Premium_ZRS'
+            profileAuth             = 'entra-kerberos'
+            smbChannelEncryption    = 'AES-128-GCM+AES-256-GCM'
+            networkEgress           = 'nat-gateway'
+            sampleHostsBand         = $SampleHostsBand
+            sampleSessionsBand      = $SampleSessionsBand
+            windowHours             = $roundedWindow
+        }
+        metrics     = $metrics
+        verdict     = [ordered]@{
+            experienceGate = $gate
+            claims         = @(
+                [ordered]@{
+                    claim       = 'ref:session-host-sizing#multisession-users-per-vcpu'
+                    observation = 'obs:users-per-vcpu-adopted'
+                    verdict     = 'extends'
+                }
+            )
+        }
+    }
+    if ($Source -eq 'estate') {
+        $result['consent'] = $true
+    }
+
+    $validation = Test-AvdBenchmarkResult -InputObject $result
+    if (-not $validation.IsValid) {
+        throw "Generated C25 benchmark result failed validation: $($validation.Errors -join '; ')"
+    }
+    return $result
+}
+
 Export-ModuleMember -Function @(
     'Get-AvdPercentile',
     'ConvertTo-AvdSampleBand',
     'Test-AvdSandboxApproval',
     'Test-AvdDiskSpdBinary',
     'Test-AvdBenchmarkResult',
-    'Invoke-AvdBenchmarkProfile'
+    'Invoke-AvdBenchmarkProfile',
+    'ConvertFrom-EucScore'
 )
