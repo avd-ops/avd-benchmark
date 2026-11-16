@@ -5,7 +5,7 @@ Part of [avd-ops](https://avd-ops.dev/), the open toolkit for Azure Virtual Desk
 Active Tier 1 synthetic and control-plane benchmark harness (`Invoke-AvdBenchmark.ps1`, `scripts/run-benchmark.sh`) and interactive OpenBenchmarking-style **Benchmark Explorer & Runner Portal** (`site/portal/`) for Azure Virtual Desktop. Benchmark profile definitions, experience gates, and the public corpus live in [avd-assess](https://github.com/avd-ops/avd-assess), while passive Tier 2 observational telemetry lives in [avd-current-state](https://github.com/avd-ops/avd-current-state).
 
 > [!WARNING]
-> **Personal project. Research and learning only. Not for production. No warranty.**
+> **Community research project. Use at your own risk. No warranty.**
 >
 > - This is my own personal project, built on my own time **for research and learning**. It is **not affiliated with, endorsed by or supported by my employer, Liquidware or Microsoft**, and it does not represent their views, products or guidance. It is not an official Microsoft product, and it is not a certified or supported tool.
 > - **Do not run active synthetic load profiles on production session hosts.** Use an isolated lab host pool or an approved ephemeral sandbox batch (`-SandboxBatchApproval "go batch <id> $<total>"`). Output is not a production-readiness certification, a compliance attestation or a security audit.
@@ -55,7 +55,7 @@ bash ./scripts/run-benchmark.sh --profile multisession-density --workload-class 
 
 ## Optional Side-by-Side Comparison (EUC Score Freeware)
 
-`avd-benchmark` uses native PowerShell 7 workers, PerfMon counters, and pinned MIT [`diskspd`](https://github.com/microsoft/diskspd)—it never bundles or redistributes proprietary load-testing agents. Operators running **public-result lab batches** (`-Mode SandboxBatch` or an isolated lab host pool) can optionally run [EUC Score Freeware](https://eucscore.com/freeware/) (`Simload Runner` or stand-alone `DataMiner.exe`) alongside `Invoke-AvdBenchmark.ps1` to cross-check `multisession-density` persona calibration and endpoint telemetry:
+`avd-benchmark` uses native PowerShell 7 workers, PerfMon counters, and pinned MIT [`diskspd`](https://github.com/microsoft/diskspd)â€”it never bundles or redistributes proprietary load-testing agents. Operators running **public-result lab batches** (`-Mode SandboxBatch` or an isolated lab host pool) can optionally run [EUC Score Freeware](https://eucscore.com/freeware/) (`Simload Runner` or stand-alone `DataMiner.exe`) alongside `Invoke-AvdBenchmark.ps1` to cross-check `multisession-density` persona calibration and endpoint telemetry:
 
 - **License boundary:** EUC Score's free community package requires results to be shared publicly (commercial or >50-user orgs require a paid subscription). Keep it out of production golden images and `avd-landing-zone` templates.
 - **Evidence format:** Only redacted `C25` (`avd-benchmark-result/v1`) outputs produced by `Invoke-AvdBenchmark.ps1` and validated by `Test-AvdBenchmarkResult` are submitted to `avd-assess`.

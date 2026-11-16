@@ -24,7 +24,7 @@ test('README and LICENSE keep the avd-ops brand line and research-only warning b
   const top = read('README.md').split('\n## ')[0];
   assert.match(top, /Part of \[avd-ops\]\(https:\/\/avd-ops\.dev\/\), the open toolkit for Azure Virtual Desktop\./);
   for (const re of [
-    /Personal project\. Research and learning only\. Not for production\. No warranty\./,
+    /Community research project\. Use at your own risk\. No warranty\./,
     /not affiliated with, endorsed by or supported by my employer, Liquidware or Microsoft/,
     /"as is", without warranty of any kind/,
     /Contributions and forks are welcome and encouraged\./
