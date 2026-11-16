@@ -12,6 +12,15 @@ Active Tier 1 synthetic and control-plane benchmark harness (`Invoke-AvdBenchmar
 > - It is provided **"as is", without warranty of any kind**, under the [MIT License](LICENSE). You use it at your own risk. You are responsible for where you run it and for what you do with its output.
 > - **Contributions and forks are welcome and encouraged.** See [Contributing](#contributing).
 
+## How it connects
+
+| Direction | Repo | Relationship |
+|---|---|---|
+| Front door | [avd-ops](https://github.com/avd-ops/avd-ops#readme) | Overview, [repo page](https://avd-ops.dev/docs/repos/avd-benchmark.html), and [portal](https://avd-ops.app/benchmark/) |
+| Standards | [avd-assess](https://github.com/avd-ops/avd-assess#readme) | Defines Tier 1 profiles, experience gates, and holds the public `C25` corpus |
+| Sibling | [avd-current-state](https://github.com/avd-ops/avd-current-state#readme) | Passive Tier 2 observational telemetry |
+| Sibling | [avd-remediate](https://github.com/avd-ops/avd-remediate#readme) | Exports host-level `C25` telemetry (`Export-AvdHostTelemetry.ps1`) |
+
 ## Tier 1 Benchmark Profiles
 
 `avd-benchmark` implements five declarative Tier 1 benchmark profiles defined in `avd-assess`:
