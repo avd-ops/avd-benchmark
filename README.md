@@ -55,9 +55,9 @@ bash ./scripts/run-benchmark.sh --profile multisession-density --workload-class 
 
 ## Optional Side-by-Side Comparison (EUC Score Freeware)
 
-`avd-benchmark` uses native PowerShell 7 workers, PerfMon counters, and pinned MIT [`diskspd`](https://github.com/microsoft/diskspd)â€”it never bundles or redistributes proprietary load-testing agents. Operators running **public-result lab batches** (`-Mode SandboxBatch` or an isolated lab host pool) can optionally run [EUC Score Freeware](https://eucscore.com/freeware/) (`Simload Runner` or stand-alone `DataMiner.exe`) alongside `Invoke-AvdBenchmark.ps1` to cross-check `multisession-density` persona calibration and endpoint telemetry:
+`avd-benchmark` uses native PowerShell 7 workers, PerfMon counters, and pinned MIT [`diskspd`](https://github.com/microsoft/diskspd) -- it never bundles or redistributes proprietary load-testing agents. Operators running **public-result lab batches** (`-Mode SandboxBatch` or an isolated lab host pool) can optionally run [EUC Score](https://eucscore.com/freeware/) (`Simload Runner` to launch `Simloads` and configure `Telemetry.ini`, plus `Data Miner` for host-side PerfMon telemetry CSVs and SUT inventory) alongside `Invoke-AvdBenchmark.ps1` to cross-check `multisession-density` persona calibration and host-side counters:
 
-- **License boundary:** EUC Score's free community package requires results to be shared publicly (commercial or >50-user orgs require a paid subscription). Keep it out of production golden images and `avd-landing-zone` templates.
+- **License boundary:** Under EUC Score's published terms, the free non-commercial Community Subscription applies to producing EUC benchmarking content and sharing it publicly at no cost; organizations with either more than 50 PCs or users, OR more than $1 million USD in annual revenues conducting tests for commercial or End-User Computing product-related purposes require a paid Enterprise Subscription. Keep EUC Score out of production hosts, golden images, and `avd-landing-zone` templates.
 - **Evidence format:** Only redacted `C25` (`avd-benchmark-result/v1`) outputs produced by `Invoke-AvdBenchmark.ps1` and validated by `Test-AvdBenchmarkResult` are submitted to `avd-assess`.
 
 ## Contract C25 (`avd-benchmark-result/v1`) and Redaction Guard

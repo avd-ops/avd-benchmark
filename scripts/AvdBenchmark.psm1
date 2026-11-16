@@ -280,11 +280,31 @@ function Test-AvdBenchmarkResult {
     if ($rawJson -match '\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b') {
         $errors.Add('Leak detected: IPv4 address found in benchmark result.')
     }
+    if ($rawJson -match '(?i)(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{0,4}|::1') {
+        $errors.Add('Leak detected: IPv6 address found in benchmark result.')
+    }
     if ($rawJson -match '(?i)/subscriptions/|/resourcegroups/|\\\\[a-z0-9._-]+\\') {
         $errors.Add('Leak detected: Azure resource ID or UNC path found in benchmark result.')
     }
-    if ($rawJson -match '(?i)\b[a-z0-9-]+\.(?:onmicrosoft\.com|contoso\.com|corp|local|internal|windows\.net|azure\.com)\b') {
-        $errors.Add('Leak detected: domain or hostname found in benchmark result.')
+    $domainMatches = [regex]::Matches($rawJson, '(?i)\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b')
+    foreach ($m in $domainMatches) {
+        $hostVal = $m.Value.ToLowerInvariant()
+        if ($hostVal -ne 'assess.avd-ops.dev') {
+            $errors.Add('Leak detected: domain or hostname found in benchmark result.')
+            break
+        }
+    }
+
+    # 1b. Pinned JSON Schema validation (C25 avd-benchmark-result/v1)
+    $schemaPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'contracts' 'benchmark-result.schema.json'
+    if (Test-Path -LiteralPath $schemaPath -PathType Leaf) {
+        try {
+            $null = $rawJson | Test-Json -SchemaFile $schemaPath -ErrorAction Stop
+        } catch {
+            $errors.Add("Schema validation failed: $($_.Exception.Message)")
+        }
+    } else {
+        $errors.Add('Pinned C25 schema file contracts/benchmark-result.schema.json is missing.')
     }
 
     # 2. Top-level fields
