@@ -75,9 +75,16 @@
     { name: 'GUID', re: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/ },
     { name: 'Email or UPN', re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/ },
     { name: 'IPv4 address', re: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/ },
-    { name: 'Azure resource ID or UNC path', re: /\/subscriptions\/|\/resourcegroups\/|\\\\[a-zA-Z0-9._-]+\\/i },
-    { name: 'Domain or hostname', re: /\b[a-z0-9-]+\.(?:onmicrosoft\.com|contoso\.com|corp|local|internal|windows\.net|azure\.com)\b/i }
+    { name: 'IPv6 address', re: /(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{0,4}|::1/i },
+    { name: 'Azure resource ID or UNC path', re: /\/subscriptions\/|\/resourcegroups\/|\\\\[a-zA-Z0-9._-]+\\/i }
   ];
+
+  function getGeneratorKind(record) {
+    if (record && record.extensions && record.extensions.generator && record.extensions.generator.kind) {
+      return record.extensions.generator.kind;
+    }
+    return 'native';
+  }
 
   function buildCitation(record) {
     if (!record || !record.profile || !record.id) return '';
@@ -95,6 +102,12 @@
       if (f.osDiskType && r.environment.osDiskType !== f.osDiskType) return false;
       if (f.wdotProfile && r.environment.wdotProfile !== f.wdotProfile) return false;
       if (f.fslogixExclusions && r.environment.fslogixExclusions !== f.fslogixExclusions) return false;
+      const genKind = getGeneratorKind(r);
+      if (f.generatorKind) {
+        if (genKind !== f.generatorKind) return false;
+      } else if (!f.includeExternal && genKind !== 'native') {
+        return false;
+      }
       return true;
     });
   }
@@ -186,6 +199,8 @@
         defenderCacheMaintained: Boolean(r.environment.defenderCacheMaintained !== undefined ? r.environment.defenderCacheMaintained : r.environment.defenderCachePresealed),
         fslogixExclusions: r.environment.fslogixExclusions,
         sampleSessionsBand: r.environment.sampleSessionsBand,
+        generatorKind: getGeneratorKind(r),
+        generatorPersona: r.extensions && r.extensions.generator ? r.extensions.generator.persona || null : null,
         experienceGate: r.verdict && r.verdict.experienceGate ? r.verdict.experienceGate : 'unknown',
         bars: extractDistributionBars(r),
         citation: buildCitation(r)
@@ -269,6 +284,13 @@
         errors.push(`Leak detected: ${pat.name} pattern found in payload.`);
       }
     }
+    const domainMatches = raw.match(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi) || [];
+    for (const d of domainMatches) {
+      if (d.toLowerCase() !== 'assess.avd-ops.dev') {
+        errors.push('Leak detected: Domain or hostname pattern found in payload.');
+        break;
+      }
+    }
 
     if (doc.schema !== 'avd-benchmark-result/v1') errors.push('schema must be "avd-benchmark-result/v1".');
     if (!/^bm-[0-9]{8}-[a-z0-9-]+$/.test(String(doc.id || ''))) errors.push('id must match "^bm-YYYYMMDD-<slug>$".');
@@ -327,6 +349,23 @@
     const v = doc.verdict;
     if (!v || typeof v !== 'object' || !['pass', 'warn', 'fail'].includes(v.experienceGate)) {
       errors.push('verdict.experienceGate must be pass, warn, or fail.');
+    }
+
+    if (doc.extensions && typeof doc.extensions === 'object' && doc.extensions.generator !== undefined) {
+      const g = doc.extensions.generator;
+      if (!g || typeof g !== 'object' || Array.isArray(g)) {
+        errors.push('extensions.generator must be an object.');
+      } else {
+        const allowedGenKeys = ['kind', 'version', 'persona', 'licenseSelfDeclared', 'exportSha256'];
+        for (const k of Object.keys(g)) {
+          if (!allowedGenKeys.includes(k)) errors.push(`extensions.generator.${k} is not an allowed property.`);
+        }
+        if (!['native', 'euc-score-byo'].includes(g.kind)) errors.push('extensions.generator.kind must be native or euc-score-byo.');
+        if (!/^(?:[0-9]+\.[0-9]+(?:\.[0-9]+)?|unknown)$/.test(String(g.version || ''))) errors.push('extensions.generator.version must be semver or unknown.');
+        if (!['author', 'knowledge-worker', 'power-user', 'media-user', 'other'].includes(g.persona)) errors.push('extensions.generator.persona is not in the closed enum.');
+        if (g.licenseSelfDeclared !== 'community-public-results') errors.push('extensions.generator.licenseSelfDeclared must be community-public-results.');
+        if (!/^[0-9a-f]{64}$/.test(String(g.exportSha256 || ''))) errors.push('extensions.generator.exportSha256 must be a 64-char hex SHA-256.');
+      }
     }
 
     return { valid: errors.length === 0, errors, doc };
