@@ -337,7 +337,7 @@
     if (!check.valid || !check.doc) return '';
     const doc = check.doc;
     const profileId = doc.profile && doc.profile.id ? doc.profile.id : 'benchmark';
-    const src = doc.source === 'prior' ? 'sandbox' : doc.source;
+    const src = doc.source;
     const params = new URLSearchParams({
       template: 'baseline-evidence.yml',
       title: `Evidence: ${profileId} ${src}`,

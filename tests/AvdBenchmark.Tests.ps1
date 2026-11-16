@@ -119,12 +119,31 @@ Describe 'AvdBenchmark.psm1 - Fail-Closed Leak & Redaction Guard' {
         ($check.Errors -join ' ') | Should -Match 'GUID'
     }
 
-    It 'Rejects an email address, IPv4 address, UNC path, or domain name' {
+    It 'Rejects an email address, IPv4/IPv6 address, UNC path, or domain name' {
         $json = $script:CleanRecord | ConvertTo-Json -Depth 12
         (Test-AvdBenchmarkResult -InputObject ($json.Replace('"nat-gateway"', '"admin@contoso.com"'))).IsValid | Should -BeFalse
         (Test-AvdBenchmarkResult -InputObject ($json.Replace('"nat-gateway"', '"10.24.16.8"'))).IsValid | Should -BeFalse
+        (Test-AvdBenchmarkResult -InputObject ($json.Replace('"nat-gateway"', '"2001:db8::1"'))).IsValid | Should -BeFalse
         (Test-AvdBenchmarkResult -InputObject ($json.Replace('"nat-gateway"', '"\\\\fs01\\profiles"'))).IsValid | Should -BeFalse
         (Test-AvdBenchmarkResult -InputObject ($json.Replace('"nat-gateway"', '"host01.contoso.com"'))).IsValid | Should -BeFalse
+        (Test-AvdBenchmarkResult -InputObject ($json.Replace('"nat-gateway"', '"host01.acme.com"'))).IsValid | Should -BeFalse
+    }
+
+    It 'Rejects unknown top-level properties via the pinned C25 JSON schema' {
+        $dirty = $script:CleanRecord | ConvertTo-Json -Depth 12 | ConvertFrom-Json -Depth 12 -AsHashtable
+        $dirty['unexpectedField'] = 'should-fail'
+        $check = Test-AvdBenchmarkResult -InputObject $dirty
+        $check.IsValid | Should -BeFalse
+        ($check.Errors -join ' ') | Should -Match 'Schema validation failed'
+    }
+
+    It 'Keeps contracts/benchmark-result.schema.json byte-identical to PINS.json SHA-256' {
+        $pinsPath = Join-Path $script:RepoRoot 'PINS.json'
+        $pins = Get-Content -LiteralPath $pinsPath -Raw | ConvertFrom-Json -AsHashtable
+        $schemaRel = $pins['artifacts']['schema']
+        $expectedHash = $pins['hashes'][$schemaRel]
+        $actualHash = (Get-FileHash -LiteralPath (Join-Path $script:RepoRoot $schemaRel) -Algorithm SHA256).Hash.ToLowerInvariant()
+        $actualHash | Should -Be $expectedHash
     }
 
     It 'Rejects unbanded sample counts and raw time-series arrays in metrics' {

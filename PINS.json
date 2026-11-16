@@ -1,8 +1,12 @@
 {
-  "$comment": "Pinned avd-assess commit for benchmark profile definitions, experience gates, C25 schema, and baseline corpus.",
+  "$comment": "Pinned avd-assess release for C25 schema and baseline corpus. Schema file must stay byte-identical to avd-assess/contracts/schemas/benchmark-result.schema.json.",
   "source": "https://github.com/avd-ops/avd-assess",
-  "commit": "cfcc3026b968c3c15a4150b8c7160891a138d3f0",
-  "pinnedAt": "2026-10-28",
+  "release": "v3.0.0",
+  "commit": "c8ca035682e46c3327a10ae28bcb665dbb6abd45",
+  "pinnedAt": "2026-11-16",
+  "hashes": {
+    "contracts/benchmark-result.schema.json": "1d7967b2c4dac6306acc250e45dc3be3ed4e9ae6df9387aa591fef59e84fe8ed"
+  },
   "artifacts": {
     "schema": "contracts/benchmark-result.schema.json",
     "corpus": "site/portal/corpus.json"
