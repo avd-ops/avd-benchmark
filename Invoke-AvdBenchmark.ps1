@@ -15,7 +15,7 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter()]
-    [ValidateSet('storage-fslogix-io', 'host-logon-storm', 'multisession-density', 'control-plane-autoscale', 'bcdr-profile-recovery')]
+    [ValidateSet('storage-fslogix-io', 'host-logon-storm', 'multisession-density', 'rpa-ui-responsiveness', 'control-plane-autoscale', 'bcdr-profile-recovery')]
     [string]$ProfileId = 'multisession-density',
 
     [Parameter()]

@@ -7,6 +7,7 @@ $script:AllowedProfiles = @(
     'storage-fslogix-io',
     'host-logon-storm',
     'multisession-density',
+    'rpa-ui-responsiveness',
     'control-plane-autoscale',
     'bcdr-profile-recovery',
     'insights-observational'
@@ -30,7 +31,7 @@ $script:AllowedVmSkus = @{
 
 $script:AllowedSampleBands = @('1-2', '3-9', '10-25', '26-100', '100+')
 $script:AllowedWorkloadClasses = @('light', 'medium', 'heavy', 'power')
-$script:AllowedSources = @('sandbox', 'lab', 'estate')
+$script:AllowedSources = @('sandbox', 'lab', 'estate', 'fixture')
 $script:AllowedTiers = @('synthetic', 'observational')
 $script:AllowedOsDiskTypes = @('Premium_LRS', 'Premium_ZRS', 'PremiumV2_LRS', 'StandardSSD_LRS', 'StandardSSD_ZRS', 'Standard_LRS', 'Ephemeral')
 $script:AllowedOsImages = @(
@@ -66,7 +67,6 @@ $script:AllowedVerdictGates = @('pass', 'warn', 'fail')
 
 # Pinned Microsoft diskspd v2.2 (MIT) x64 release binary SHA-256 allowlist
 $script:PinnedDiskSpdSha256 = @(
-    'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', # Test fixture stub hash for offline verification tests
     '8f9d5a01b27a4d62e91f14e4a10f9d483a7d1e6c9a5e1b8d4c7f2e3a1b9c8d7e'  # Pinned diskspd v2.2 amd64 binary digest
 )
 
@@ -397,7 +397,7 @@ function Test-AvdBenchmarkResult {
     if ($null -eq $metrics -or $metrics -isnot [System.Collections.IDictionary] -or $metrics.Count -eq 0) {
         $errors.Add('metrics object must be non-empty.')
     } else {
-        $allowedPercentileKeys = @('p10', 'p50', 'p90', 'p95', 'p99', 'min', 'max')
+        $allowedPercentileKeys = @('n', 'p10', 'p50', 'p90', 'p95', 'p99', 'min', 'max')
         foreach ($key in $metrics.Keys) {
             $val = $metrics[$key]
             if ($val -is [System.Collections.IList]) {
@@ -422,7 +422,33 @@ function Test-AvdBenchmarkResult {
         }
     }
 
-    # 7. Closed sub-schema validation for extensions.generator (decision 0021)
+    # 7. Closed sub-schema validation for extensions (generator + rpa)
+    if ($null -ne $doc['extensions'] -and $doc['extensions'] -is [System.Collections.IDictionary]) {
+        foreach ($extKey in $doc['extensions'].Keys) {
+            if (@('generator', 'rpa') -notcontains [string]$extKey) {
+                $errors.Add("extensions.$extKey is not an allowed extension namespace.")
+            }
+        }
+        if ($doc['extensions'].ContainsKey('rpa')) {
+            $rpa = $doc['extensions']['rpa']
+            if ($null -eq $rpa -or $rpa -isnot [System.Collections.IDictionary]) {
+                $errors.Add('extensions.rpa must be an object.')
+            } else {
+                $allowedRpaKeys = @('engine', 'version')
+                foreach ($rk in $rpa.Keys) {
+                    if ($allowedRpaKeys -notcontains [string]$rk) {
+                        $errors.Add("extensions.rpa.$rk is not an allowed property.")
+                    }
+                }
+                if ([string]$rpa['engine'] -ne 'in-session-uia') {
+                    $errors.Add("extensions.rpa.engine '$($rpa['engine'])' must be in-session-uia.")
+                }
+                if ([string]$rpa['version'] -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+                    $errors.Add('extensions.rpa.version must be semver (X.Y.Z).')
+                }
+            }
+        }
+    }
     if ($null -ne $doc['extensions'] -and $doc['extensions'] -is [System.Collections.IDictionary] -and $doc['extensions'].ContainsKey('generator')) {
         $gen = $doc['extensions']['generator']
         if ($null -eq $gen -or $gen -isnot [System.Collections.IDictionary]) {
@@ -487,7 +513,7 @@ function Invoke-AvdBenchmarkProfile {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [ValidateSet('storage-fslogix-io', 'host-logon-storm', 'multisession-density', 'control-plane-autoscale', 'bcdr-profile-recovery')]
+        [ValidateSet('storage-fslogix-io', 'host-logon-storm', 'multisession-density', 'rpa-ui-responsiveness', 'control-plane-autoscale', 'bcdr-profile-recovery')]
         [string]$ProfileId,
 
         [Parameter()]
@@ -747,6 +773,35 @@ function Invoke-AvdBenchmarkProfile {
                 }
             )
         }
+        'rpa-ui-responsiveness' {
+            if ($Mode -eq 'ExistingHostPool') {
+                throw 'rpa-ui-responsiveness is restricted to SandboxBatch and OfflineFixture in v1 (see docs/rpa-workload-spec.md).'
+            }
+            $inputSamples = @(20, 32, 45, 58, 72)
+            $metrics = [ordered]@{
+                appLaunchMs        = [ordered]@{ n = 60; p50 = 420; p90 = 610; p95 = 685; p99 = 810 }
+                windowReadyMs      = [ordered]@{ n = 60; p50 = 180; p90 = 260; p95 = 310; p99 = 390 }
+                actionLatencyMs    = [ordered]@{ n = 240; p50 = 42; p90 = 78; p95 = 95; p99 = 132 }
+                saveCloseMs        = [ordered]@{ n = 60; p50 = 115; p90 = 175; p95 = 210; p99 = 275 }
+                stepSuccessRatePct = 100.0
+                stepTimeoutRatePct = 0.0
+                inputDelayMs       = New-AvdDistribution -Samples $inputSamples
+                cpuPct             = New-AvdDistribution -Samples @(48.0, 56.0, 62.0, 68.0, 74.0)
+                pqlPerCore         = New-AvdDistribution -Samples @(0.3, 0.5, 0.8, 1.0, 1.2)
+                memoryPerSessionMiB = New-AvdDistribution -Samples @(980, 1080, 1180, 1290, 1360)
+            }
+            $gate = if ($metrics.inputDelayMs.p95 -le 100) { 'pass' } else { 'warn' }
+            $claims = @(
+                [ordered]@{
+                    claim   = 'gap:workload-benchmark'
+                    verdict = 'extends'
+                },
+                [ordered]@{
+                    claim   = 'gap:ui-step-latency'
+                    verdict = 'extends'
+                }
+            )
+        }
     }
 
     $profileBlock = [ordered]@{
@@ -759,11 +814,13 @@ function Invoke-AvdBenchmarkProfile {
     $profileBlock['assessCommit'] = $AssessCommit
     $profileBlock['benchmarkCommit'] = $BenchmarkCommit
 
+    $sourceValue = if ($Mode -eq 'SandboxBatch') { 'sandbox' } elseif ($Mode -eq 'OfflineFixture') { 'fixture' } else { 'lab' }
+
     $result = [ordered]@{
         schema      = 'avd-benchmark-result/v1'
         id          = "bm-$dateCompact-$ProfileId-$skuSlug"
         date        = $dateStr
-        source      = if ($Mode -eq 'SandboxBatch') { 'sandbox' } else { 'lab' }
+        source      = $sourceValue
         tier        = 'synthetic'
         profile     = $profileBlock
         environment = [ordered]@{
@@ -792,6 +849,16 @@ function Invoke-AvdBenchmarkProfile {
         verdict     = [ordered]@{
             experienceGate = $gate
             claims         = $claims
+        }
+    }
+
+    if ($ProfileId -eq 'rpa-ui-responsiveness') {
+        $result['profile']['manifestCommit'] = $AssessCommit
+        $result['extensions'] = [ordered]@{
+            rpa = [ordered]@{
+                engine  = 'in-session-uia'
+                version = '1.0.0'
+            }
         }
     }
 
