@@ -185,4 +185,6 @@ test('benchmark-core.js enforces SandboxBatch approval gate and validates all se
   assert.equal(core.filterCorpus([corpus.records[0], eucRec], { includeExternal: true }).length, 2);
   assert.equal(core.compareRecords(eucRec, null)[0].generatorKind, 'euc-score-byo');
   assert.equal(core.compareRecords(eucRec, null)[0].generatorPersona, 'knowledge-worker');
+  assert.match(read('site/portal/index.html'), /id="filter-generator"/);
+  assert.match(read('site/portal/portal.js'), /eucscore\.com\/freeware\//);
 });

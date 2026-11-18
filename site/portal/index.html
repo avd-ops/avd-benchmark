@@ -77,6 +77,13 @@
           <option value="none">none</option>
         </select>
       </label>
+      <label class="field" for="filter-generator"><span>Workload generator</span>
+        <select id="filter-generator">
+          <option value="native" selected>Native (avd-benchmark)</option>
+          <option value="all">Include EUC Score (BYO)</option>
+          <option value="euc-score-byo">EUC Score (BYO) only</option>
+        </select>
+      </label>
     </div>
     <div id="compare-grid" class="compare-grid" aria-live="polite"></div>
     <details class="more"><summary>How citations and experience gates work</summary>

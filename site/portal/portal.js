@@ -102,12 +102,20 @@
     const skuB = byId('compare-sku-b') ? byId('compare-sku-b').value : '';
     const diskFilter = byId('filter-disk') ? byId('filter-disk').value : '';
     const wdotFilter = byId('filter-wdot') ? byId('filter-wdot').value : '';
+    const genFilter = byId('filter-generator') ? byId('filter-generator').value : 'native';
 
-    const matching = core.filterCorpus(corpusData.records, {
+    const filterOpts = {
       profileId: profileId,
       osDiskType: diskFilter,
       wdotProfile: wdotFilter
-    });
+    };
+    if (genFilter === 'all') {
+      filterOpts.includeExternal = true;
+    } else if (genFilter === 'euc-score-byo') {
+      filterOpts.generatorKind = 'euc-score-byo';
+    }
+
+    const matching = core.filterCorpus(corpusData.records, filterOpts);
 
     const recA = matching.find(function (r) { return !skuA || r.environment.vmSku === skuA; }) || matching[0] || null;
     const recB = matching.find(function (r) { return r !== recA && (!skuB || r.environment.vmSku === skuB); }) || matching[1] || null;
@@ -141,6 +149,25 @@
       pill.className = `outcome o-${c.experienceGate === 'pass' ? 'pass' : c.experienceGate === 'warn' ? 'warn' : 'gap'}`;
       pill.textContent = `Experience gate: ${c.experienceGate}`;
       card.appendChild(pill);
+
+      if (c.generatorKind === 'euc-score-byo') {
+        const genBadge = document.createElement('span');
+        genBadge.className = 'outcome o-warn';
+        genBadge.textContent = `EUC Score (BYO) | Persona: ${c.generatorPersona || 'other'} | Sessions: ${c.sampleSessionsBand}`;
+        card.appendChild(genBadge);
+
+        const attr = document.createElement('p');
+        attr.className = 'compare-meta';
+        attr.appendChild(document.createTextNode('External BYO host telemetry via '));
+        const link = document.createElement('a');
+        link.href = 'https://eucscore.com/freeware/';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'EUC Score Freeware';
+        attr.appendChild(link);
+        attr.appendChild(document.createTextNode(' (no affiliation or endorsement).'));
+        card.appendChild(attr);
+      }
 
       const ul = document.createElement('ul');
       ul.className = 'bar-list';
@@ -280,7 +307,7 @@
     if (backBtn) backBtn.addEventListener('click', function () { showStep(currentStep - 1); });
     if (nextBtn) nextBtn.addEventListener('click', function () { showStep(currentStep + 1); });
 
-    ['filter-profile', 'compare-sku-a', 'compare-sku-b', 'filter-disk', 'filter-wdot'].forEach(function (id) {
+    ['filter-profile', 'compare-sku-a', 'compare-sku-b', 'filter-disk', 'filter-wdot', 'filter-generator'].forEach(function (id) {
       const el = byId(id);
       if (el) el.addEventListener('change', renderComparison);
     });
