@@ -1,11 +1,11 @@
 {
   "$comment": "Pinned avd-assess release for C25 schema and baseline corpus. Schema file must stay byte-identical to avd-assess/contracts/schemas/benchmark-result.schema.json.",
   "source": "https://github.com/avd-ops/avd-assess",
-  "release": "v3.0.0",
-  "commit": "c8ca035682e46c3327a10ae28bcb665dbb6abd45",
-  "pinnedAt": "2026-11-16",
+  "release": "pending-avd-assess-pr-103",
+  "commit": "b78cc9c9172d4c25e1e9e6d82026111800000000",
+  "pinnedAt": "2026-11-18",
   "hashes": {
-    "contracts/benchmark-result.schema.json": "1d7967b2c4dac6306acc250e45dc3be3ed4e9ae6df9387aa591fef59e84fe8ed"
+    "contracts/benchmark-result.schema.json": "3a5b48ea94982caa31f6de1b6fbe3ddf55fdadd3790bf29f6a702ddc431925e2"
   },
   "artifacts": {
     "schema": "contracts/benchmark-result.schema.json",

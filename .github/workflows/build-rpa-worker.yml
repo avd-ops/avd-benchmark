@@ -1,0 +1,59 @@
+name: Build RPA Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/build-rpa-worker.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - '.github/workflows/build-rpa-worker.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build FixtureApp (net48)
+        run: dotnet build src/AvdBenchmark.FixtureApp/AvdBenchmark.FixtureApp.csproj -c Release -o out/rpa-bundle
+
+      - name: Build RpaWorker (net48, locked NuGet)
+        run: |
+          if (Test-Path src/AvdBenchmark.RpaWorker/packages.lock.json) {
+            dotnet build src/AvdBenchmark.RpaWorker/AvdBenchmark.RpaWorker.csproj -c Release -p:RestoreLockedMode=true -o out/rpa-bundle
+          } else {
+            dotnet build src/AvdBenchmark.RpaWorker/AvdBenchmark.RpaWorker.csproj -c Release -o out/rpa-bundle
+          }
+
+      - name: Generate SHA-256 manifest
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path out/rpa-bundle -File | Sort-Object Name | ForEach-Object {
+            @{
+              path   = $_.Name
+              sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+          }
+          @{ schema = 'avd-benchmark-rpa-manifest/v1'; files = $files } |
+            ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath out/rpa-bundle/manifest.sha256.json -Encoding utf8
+
+      - name: Attest build provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'out/rpa-bundle/*'

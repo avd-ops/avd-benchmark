@@ -65,7 +65,7 @@ Describe 'AvdBenchmark.psm1 - Pinned diskspd SHA-256 Verification' {
         $tmpFile = Join-Path ([IO.Path]::GetTempPath()) "diskspd-stub-$([Guid]::NewGuid().ToString('N')).bin"
         try {
             [IO.File]::WriteAllBytes($tmpFile, [byte[]]@())
-            $verified = Test-AvdDiskSpdBinary -BinaryPath $tmpFile
+            $verified = Test-AvdDiskSpdBinary -BinaryPath $tmpFile -AllowedSha256 @('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
             $verified.Verified | Should -BeTrue
 
             [IO.File]::WriteAllBytes($tmpFile, [Text.Encoding]::UTF8.GetBytes('untrusted-binary'))
@@ -165,6 +165,15 @@ Describe 'AvdBenchmark.psm1 - Fail-Closed Leak & Redaction Guard' {
             $check.IsValid | Should -BeTrue -Because ($check.Errors -join '; ')
             $rec['source'] | Should -BeIn @('sandbox', 'lab')
         }
+    }
+
+    It 'Generates and validates rpa-ui-responsiveness fixture output with extensions.rpa and rejects ExistingHostPool' {
+        $rpa = Invoke-AvdBenchmarkProfile -ProfileId 'rpa-ui-responsiveness' -WorkloadClass 'medium' -Mode 'OfflineFixture'
+        $rpa['source'] | Should -Be 'fixture'
+        $rpa['extensions']['rpa']['engine'] | Should -Be 'in-session-uia'
+        $rpa['metrics']['appLaunchMs']['n'] | Should -Be 60
+        (Test-AvdBenchmarkResult -InputObject $rpa).IsValid | Should -BeTrue
+        { Invoke-AvdBenchmarkProfile -ProfileId 'rpa-ui-responsiveness' -Mode 'ExistingHostPool' } | Should -Throw '*SandboxBatch*'
     }
 }
 

@@ -14,6 +14,7 @@
     'storage-fslogix-io',
     'host-logon-storm',
     'multisession-density',
+    'rpa-ui-responsiveness',
     'control-plane-autoscale',
     'bcdr-profile-recovery',
     'insights-observational'
@@ -66,10 +67,10 @@
   const ALLOWED_SMB_ENC = ['AES-128-GCM+AES-256-GCM', 'AES-256-GCM-only', 'includes-CCM', 'default', 'none'];
   const ALLOWED_EGRESS = ['nat-gateway', 'azure-firewall', 'nva', 'default-outbound', 'public-ip', 'private-link'];
   const ALLOWED_SAMPLE_BANDS = ['1-2', '3-9', '10-25', '26-100', '100+'];
-  const ALLOWED_SOURCES = ['sandbox', 'lab', 'estate'];
+  const ALLOWED_SOURCES = ['sandbox', 'lab', 'estate', 'fixture'];
   const ALLOWED_TIERS = ['synthetic', 'observational'];
   const ALLOWED_WORKLOAD_CLASSES = ['light', 'medium', 'heavy', 'power'];
-  const ALLOWED_PERCENTILE_KEYS = ['p10', 'p50', 'p90', 'p95', 'p99', 'min', 'max'];
+  const ALLOWED_PERCENTILE_KEYS = ['n', 'p10', 'p50', 'p90', 'p95', 'p99', 'min', 'max'];
 
   const LEAK_PATTERNS = [
     { name: 'GUID', re: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/ },
@@ -96,7 +97,7 @@
     const list = Array.isArray(records) ? records : [];
     const f = filters && typeof filters === 'object' ? filters : {};
     return list.filter(function (r) {
-      if (!r || !r.profile || !r.environment) return false;
+      if (!r || !r.profile || !r.environment || r.source === 'fixture') return false;
       if (f.profileId && r.profile.id !== f.profileId) return false;
       if (f.vmSku && r.environment.vmSku !== f.vmSku) return false;
       if (f.osDiskType && r.environment.osDiskType !== f.osDiskType) return false;
@@ -178,6 +179,18 @@
       return [
         { label: 'RTT p50', value: `${rtt50} ms`, bucketClass: widthBucketClass(rtt50, 150) },
         { label: 'RTT p95', value: `${rtt95} ms`, bucketClass: widthBucketClass(rtt95, 150) },
+        { label: 'Delay p95', value: `${id95} ms`, bucketClass: widthBucketClass(id95, 150) }
+      ];
+    }
+    if (pid === 'rpa-ui-responsiveness') {
+      const launch95 = m.appLaunchMs && typeof m.appLaunchMs === 'object' ? (m.appLaunchMs.p95 ?? m.appLaunchMs.p50 ?? 0) : 0;
+      const ready95 = m.windowReadyMs && typeof m.windowReadyMs === 'object' ? (m.windowReadyMs.p95 ?? m.windowReadyMs.p50 ?? 0) : 0;
+      const act95 = m.actionLatencyMs && typeof m.actionLatencyMs === 'object' ? (m.actionLatencyMs.p95 ?? m.actionLatencyMs.p50 ?? 0) : 0;
+      const id95 = m.inputDelayMs && typeof m.inputDelayMs === 'object' ? (m.inputDelayMs.p95 ?? 0) : 0;
+      return [
+        { label: 'Launch p95', value: `${launch95} ms`, bucketClass: widthBucketClass(launch95, 2000) },
+        { label: 'Ready p95', value: `${ready95} ms`, bucketClass: widthBucketClass(ready95, 1000) },
+        { label: 'Action p95', value: `${act95} ms`, bucketClass: widthBucketClass(act95, 500) },
         { label: 'Delay p95', value: `${id95} ms`, bucketClass: widthBucketClass(id95, 150) }
       ];
     }
@@ -351,6 +364,25 @@
       errors.push('verdict.experienceGate must be pass, warn, or fail.');
     }
 
+    if (doc.extensions && typeof doc.extensions === 'object') {
+      for (const ek of Object.keys(doc.extensions)) {
+        if (!['generator', 'rpa'].includes(ek)) errors.push(`extensions.${ek} is not an allowed extension namespace.`);
+      }
+      if (doc.extensions.rpa !== undefined) {
+        const rpa = doc.extensions.rpa;
+        if (!rpa || typeof rpa !== 'object' || Array.isArray(rpa)) {
+          errors.push('extensions.rpa must be an object.');
+        } else {
+          for (const rk of Object.keys(rpa)) {
+            if (!['engine', 'version'].includes(rk)) errors.push(`extensions.rpa.${rk} is not an allowed property.`);
+          }
+          if (rpa.engine !== 'in-session-uia') errors.push('extensions.rpa.engine must be in-session-uia.');
+          if (!/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/.test(String(rpa.version || ''))) {
+            errors.push('extensions.rpa.version must be semver.');
+          }
+        }
+      }
+    }
     if (doc.extensions && typeof doc.extensions === 'object' && doc.extensions.generator !== undefined) {
       const g = doc.extensions.generator;
       if (!g || typeof g !== 'object' || Array.isArray(g)) {
@@ -373,7 +405,7 @@
 
   function buildSubmissionIssueUrl(input) {
     const check = validateC25(input);
-    if (!check.valid || !check.doc) return '';
+    if (!check.valid || !check.doc || check.doc.source === 'fixture') return '';
     const doc = check.doc;
     const profileId = doc.profile && doc.profile.id ? doc.profile.id : 'benchmark';
     const src = doc.source;
